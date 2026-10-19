@@ -1,5 +1,13 @@
 # pi-web → pi-flash 复刻计划
 
+> **SUPERSEDED（D15，2026-10-19）**。本文只作历史对照，不再驱动范围。
+> 权威顺序：`docs/PRODUCT.md` → `docs/INTENT.md` → `docs/ARCHITECTURE.md`。
+> 下面冲突句留在原文里，取代关系是：
+> - 开篇「功能 1:1 复刻」→ D1 / D15：工作台，不以 pi-web 1:1 为验收。
+> - 里程碑 M6「macOS CI 签名包、自动更新」（评审行号写 :29；现树在 M6 条）→ D12：正式发版仅 Windows，mac 签名包与自动更新承诺到阶段 E。
+> - 「内置 pi」节「绝不调用系统安装的 pi」（评审行号写 :67）→ 本周期仍是 D9a pin；「绝不」作为永久承诺被 D9 的 D9b 条件取代。
+> - 文末「workspace 多 crate（shell/chat/sessions/…）」（评审行号 :70–74）→ 现树以 ARCHITECTURE 目录为准（`pi-link` + `app`；`wxprobe` 只服务 060，A2 删除）。
+
 > 原则：**pi-web 是产品需求文档**。功能 1:1 复刻、交互对齐，差异只在底层实现（Rust + GPUI 原生，目标极速）。
 > 唯一架构偏差：pi-web 把钉版 pi 包内嵌在自己 Node 进程里跑；Rust 嵌不了 JS SDK，等价做法是 **vendor 钉版 pi、spawn 其 cli.js**（见六、「内置 pi」节）。
 

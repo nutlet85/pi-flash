@@ -1,15 +1,19 @@
 # pi-flash 架构契约(v2:ZED 框架 × pi-web 对话层 × 极速启动)
 
 本文档是架构契约。改代码前先对照本文;改完架构相关的代码要同步更新本文。
-上位规格:`docs/模块设计/`(000-050,模块边界以此为准,本文负责技术落地)。
+**范围以 PRODUCT / INTENT 为准，本文只管技术落地。** 产品做不做看
+`docs/PRODUCT.md` 与 `docs/INTENT.md`；本文不单独扩大范围。
+模块边界仍见 `docs/模块设计/`（状态以该目录 README 的徽章为准）。
 
 ## 0. 对齐基准(双轨制)
+
+> 范围以 PRODUCT / INTENT 为准，本文只管技术落地。下表是技术原型，不是产品验收清单。
 
 | 层 | 原型 | 方式 |
 |---|---|---|
 | 框架层(布局/dock/文件树/git 面板/状态栏/顶栏) | **ZED**(`D:\github\zed`,移植基线 commit `4c902c9`,2026-09-23) | 剪裁移植源码(渲染/交互照抄,数据层接本地) |
 | 会话列表(020) | **ZCode**(`D:\github\---harness-tools---\ZCode` packages/ui) | 按其设计规格实现(排序/交互/布局参数照搬) |
-| 对话层(030/031/032) | **pi-web**(行为规格,React 无代码可搬) | 自研,行为 1:1 对齐 |
+| 对话层(030/031/032) | **pi-web**(行为规格,React 无代码可搬) | 自研,行为对齐，范围以 PRODUCT 为准 |
 | 外观体系(006/007) | 架构 ZED,数据 pi-web | ThemeRegistry/ActiveTheme + mist/rose 令牌 + pi-web markdown |
 | 通用基座(弹窗/浮层/输入) | gpui-component 0.2.0(已接通,钉版) | Modal/Popover/Notification/InputState |
 
@@ -44,14 +48,14 @@ crates/app/src/
 │                      + palette + snapshot + input_encode(键盘/IME→PTY)
 ├── i18n.rs assets.rs status_bar.rs titlebar.rs top_panels.rs
 ├── automation/        pif-ui 自动化服务(snapshot/handlers)
-├── editor/            编辑器域:kind FileTypeHandler 注册表 + view + tabs +
+├── editor/            只读（D10b）。kind FileTypeHandler 注册表 + view + tabs +
 │                      markdown/(mod 渲染入口 + highlight syntect + parse
 │                      pulldown + links + doc 文档模式 + wysiwyg/ + render/
-│                      + tests)
+│                      + tests)。可写主路径在 A3 收口，目录不物理删除
 ├── function_panel/    左 dock 域:mod(psp 列表渲染 + HoverCard/PspMenu/Tree*
 │                      overlay 状态类型) + psp_actions + psp_overlays +
 │                      file_tree + file_actions + git_panel
-├── remote_control/    微信桥(060;mod/menu/pipeline)
+├── remote_control/    微信桥(060;mod/menu/pipeline)。D14 待删（A2 移除）
 ├── services/          无 UI 助手(pi-web lib/ parity)
 ├── session/           会话域:mod(sessionView 组装/列表) + runtime/(mod 结构+
 │                      生命周期+泵、events 事件臂、send 发送路径+rpc 门面、
@@ -61,8 +65,9 @@ crates/app/src/
 │                      键路由、bar 控件行、ctx_tip 用量面板) + pool + chat_list
 │                      + menu + attachments + fork + diff + pickers +
 │                      new_session + tools_recipe
-├── settings/          设置六页(models/general/plugins/skills/mcp/
-│                      custom_models/misc/remote;McProbe/PkgOp 各归其页)
+├── settings/          设置页(models/general/plugins/skills/mcp/
+│                      custom_models/misc;McProbe/PkgOp 各归其页)。
+│                      remote（TAB_REMOTE）D14 待删，A1 切断（改 Settings 的授权见 DOCS §8.2）
 └── ui/                通用件:tokens/button/text_input/composer_input/dropdown/
                        overlay/popup/vlist/psp_scrollbar/tooltip
 ```
