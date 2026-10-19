@@ -1,10 +1,12 @@
 # subagent 管理(扩展设计)
 
+> **徽章：active**（D8）。`docs/调研/` 已随 `398e24e` 删除。正文「未实现」是快进前的句子，A0 不改设计结论。
+
 > 状态:**设计思考阶段,未实现**。
 > 结论先行:**采用 dsh-subagent 框架结构,在该框架下纳入 pi 的核心机制;形态为
 > pi package 扩展**(CLI、pi-flash、任何宿主都能加载),不做宿主内置、不做引擎内置。
 > 宿主侧(pi-flash)配套设计见 [044](044-subagent宿主设计.md)。
-> pi-web / ZCode / dsh 的研究过程归档于 [调研/subagent三家对比](../调研/subagent三家对比.md),
+> pi-web / ZCode / dsh 的研究过程原归档于 `docs/调研/subagent三家对比.md`（已随 `398e24e` 删除）。
 > 本文只落结论,不再对比叙事。
 
 ## 背景与决策

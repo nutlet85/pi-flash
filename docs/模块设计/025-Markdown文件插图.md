@@ -1,3 +1,6 @@
+> **ARCHIVED（D10b，2026-10-19）**
+> 整篇存档。Markdown 插图和粘贴图片不再写盘（`editor/markdown/attachments.rs` 约 :93 的 `std::fs::write` 在 A3 被 read_only 挡住，A4 可选删除）。本文不再更新。
+
 # Markdown 文件插图
 
 > **需求拍板（原文保留）**

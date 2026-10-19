@@ -1,5 +1,7 @@
 # subagent M1 验收清单
 
+> **徽章：active**（D8）。
+
 > 配套 [045-1 开发计划](045-1-subagent开发计划.md)。对象:`extensions/pi-subagents`。
 > **验收主路径就是跑 PF**:`cargo run -p app`,新会话里让模型委派一次,
 > 界面上看到 `agent` 工具卡与子代理结果。下面 CLI 步骤是排查用的下位手段。
