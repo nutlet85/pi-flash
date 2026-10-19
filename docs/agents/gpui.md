@@ -205,3 +205,12 @@
 - **vendor 本地改动（升级必须重套）**：`input/state.rs` `scroll_to`（**点击可见行瞬移屏幕底部修复**，2026-10-16）：滚轮路径 `update_scroll_offset` 钳的是含垫底的 `scroll_size`（半视口 overscroll），末行可合法停进视口中部；而 scroll_to 尾部曾**无条件**把 offset 重钳进纯内容范围并写 `deferred_scroll_offset`——点击视口中部的末行，停好的滚动位被拽回内容底、该行瞬移屏幕底部（10-15 那条「两钳制并存不冲突」的判断不成立，冲突在光标可见也落账）。修法：内容钳制收进上下两支越界分支（只作用于「解」），函数尾仅在 `scroll_offset != scroll_handle.offset()` 时写 deferred + notify——光标可见时滚动位不动，用户 overscroll 停车保留；分支解行为与 10-15 振荡修复一致（不越内容底、不裁顶）。
 - **vendor 本地改动（升级必须重套）**：`platform/windows/events.rs` `handle_cursor_changed`（**拖拽期光标不切样式修复**，2026-10-16）：原实现只在 `current_cursor` 的 **Some/None 翻转**时 `SetCursor`，「有→有」的样式切换全押给系统 `WM_SETCURSOR`；而**拖拽（按住键）期间系统不再派发 WM_SETCURSOR** → 光标整段钉在起手样式，松手那一刻才被补上（项目行 OpenHand → `App::set_active_drag_cursor_style(ClosedHand)` 的握紧手错位一整段：悬停与拖动同显小手、放下才显抓住）。修法 = 句柄**变了**（含 None 翻转与句柄不同）即 `SetCursor`。诊断记忆点：**同一处光标在不同修饰状态（拖拽/按住键）下表现不一致 → 先怀疑 SetCursor 的触发时机，不要一路往渲染/命中查找**。
 - **vendor 本地改动（升级必须重套）**：`platform/windows/cursor.rs`（新模块）+ `platform/windows/util.rs` `load_cursor`（**OpenHand/ClosedHand 自绘 grab 光标**，2026-10-16）：Windows 系统光标集只有指向手 IDC_HAND，OpenHand/ClosedHand 原本落 `_` 箭头兜底；新实现 = 内嵌手掌 SVG（用户供图：iconfont 实心路径 1024 视框，渲染 `fill="#fff" stroke="#000"` 白身黑线，Windows 箭头同款配方）→ `SvgRenderer::render_pixmap` 32×32 → `CreateDIBSection`（32bpp BGRA 直通 alpha、负高自上而下）+ 全零 AND 掩码 → `CreateIconIndirect`（HICON/HCURSOR 句柄互通，热点按位图实测 (17,0)/(16,2)），进程级缓存、失败回退箭头。**改图一轮的教训**：初版拿 lucide 描边图做「双层描边 + 洪泛填实心」，被用户否——描边画法修不出系统光标观感，且 lucide 路径不可直接填充；换天生实心的路径后仍波两次：纯白填充在浅色面板上边线发灰看不清 → 定稿白填充 + 黑描边（黑线保浅底、白身保深底，两主题都可辨）。**自绘光标图形要选「天生实心」的源；配色跟系统箭头走「白身 + 黑边」，单色在另一主题必踩坑**。配套陷阱：**div paint 光标注册逆序折叠后者胜**（`Frame::cursor_style` rev fold，窗口级 `set_window_cursor_style` 直接短路获胜）——注册晚的 overlay（如自绘滚动条对全面板 hitbox 注册 Arrow）会钉死整片光标；**拖拽幽灵以 `AvailableSpace::min_size()` 双轴约束布局**（window.rs draw_roots，不显式定宽即塌缩成内容宽）；拖拽期光标 = `AnyDrag.cursor_style`（源元素 base mouse_cursor 起值，可 `App::set_active_drag_cursor_style` 覆写，窗口级生效）。
+
+## 自 progress「产品定案」迁入的索引（2026-10-19）
+
+行为约束已迁到 `docs/INTENT.md` D20。下面两条实现陷阱在迁入前就写在本文，这里只加索引，不改写原文：
+
+- **不要用 `blur()` 做切标签收焦**：空焦点派发路径够不着根上 handler，连续切换卡死。见上文「keymap 与快捷键」与「焦点」里「切 tab ≠ 聚焦内容区」。
+- **焦点锚点不能放 content-col**：`topbar_r` 在其子树时，`track_focus` 会吞掉 Windows 非客户区按下，窗口按钮和拖拽全哑。见「焦点」节「track_focus 的 div 会吞 Windows 非客户区点击」。
+
+滚屏旧句「滚轮退役锚点」不要捡回来。2026-10-15 起滚轮只置 `free_scroll`，锚点与垫片保留，见「滚动」节。D20 表里有同样的更正。
