@@ -1328,6 +1328,17 @@ mod tests {
     /// share-none 持有文件时，`rename` 探针必败 → 跳过本次；占用释放后
     /// 再跑一次即可删掉。若改用 `remove_dir_all` 硬删，就会把正在运行的
     /// 旧载荷从磁盘上掏空。
+    ///
+    /// 占用者是本进程的独占读句柄（`share_mode(0)` = `FILE_SHARE_NONE`）。
+    /// Windows 拦的是目录里的打开句柄，不区分句柄属于哪个进程，和原先
+    /// powershell `FileShare.None` 同一条内核语义。
+    ///
+    /// 不再另起 powershell 写哨兵。Actions `windows-latest` 上那条会抖
+    /// （run 39260849749：`spawn` 成功，5s 内哨兵没出现，303 过 1 挂）：
+    /// `CreateProcess` 返回不等于 CLR 已起来，冷启动经常超过 50×100ms；
+    /// 刚落盘的假 exe 还会被 Defender 扫一下，`File.Open(..., None)` 是
+    /// 终止错误，脚本退出后 `Set-Content` 根本不会跑，把等待加长也等不到。
+    /// 句柄没拿到就失败——没锁住时目录还在，不能当成「跳过成功」。
     #[cfg(windows)]
     #[test]
     fn cleanup_skips_live_payload_dir() {
@@ -1337,42 +1348,45 @@ mod tests {
         fake_payload(&live, "0.1.8");
         fake_payload(&me, "0.1.10");
 
-        // 占用者：share-none 打开 live 内的文件，抓住后写哨兵文件（测试侧靠它
-        // 同步，不靠碰运气的 sleep）
-        let sentinel = root.join("holding.txt");
-        let mut holder = hidden_powershell()
-            .args([
-                "-NoProfile",
-                "-Command",
-                &format!(
-                    "$f=[System.IO.File]::Open('{}','Open','Read','None'); \
-                     Set-Content -LiteralPath '{}' -Value ok; \
-                     Start-Sleep -Seconds 30",
-                    live.join(exe_rel()).display(),
-                    sentinel.display()
-                ),
-            ])
-            .spawn()
-            .unwrap();
-        for _ in 0..50 {
-            if sentinel.exists() {
-                break;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        assert!(sentinel.exists(), "占用者未就位（powershell 启动失败？）");
-
+        let hold = exclusive_read(&live.join(exe_rel()));
         cleanup_older(root.clone(), me.clone());
         assert!(live.exists(), "活目录（文件被占用）绝不能删");
         assert!(me.exists(), "自己不动");
+        drop(hold);
 
-        let _ = holder.kill();
-        let _ = holder.wait();
-        std::thread::sleep(Duration::from_millis(300));
-        cleanup_older(root.clone(), me.clone());
+        // 句柄一放下，杀软可能马上再扫一眼假 exe。产品语义是「占用释放后
+        // 再跑一次即可删」，这里在释放之后有限次重试；持锁期间只跑一次。
+        let released = std::time::Instant::now();
+        while live.exists() && released.elapsed() < Duration::from_secs(10) {
+            cleanup_older(root.clone(), me.clone());
+            if live.exists() {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
         assert!(!live.exists(), "占用释放后应能删掉");
         assert!(me.exists());
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 独占读打开。刚写完的假 exe 可能正被杀软扫描，共享冲突时重试；
+    /// 超时仍打不开则失败（调用方不得在无句柄时断言清理被跳过）。
+    #[cfg(windows)]
+    fn exclusive_read(path: &Path) -> std::fs::File {
+        use std::os::windows::fs::OpenOptionsExt;
+        let start = std::time::Instant::now();
+        let mut last = String::new();
+        while start.elapsed() < Duration::from_secs(20) {
+            match std::fs::OpenOptions::new()
+                .read(true)
+                .share_mode(0)
+                .open(path)
+            {
+                Ok(file) => return file,
+                Err(e) => last = e.to_string(),
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("独占打开失败（杀软仍占用？）：{path:?}：{last}");
     }
 
     #[test]
