@@ -1,3 +1,6 @@
+# 按 D12 停用：正式发版仅 Windows。GitHub 端 disabled_manually（见 docs/RELEASE.md
+# 平台范围段）。勿重新启用。本文件的 on: 触发和 job 步骤保持原样，直到阶段 E 另案。
+#
 # macOS build bundle (pi-flash-650): build the .app with the vendored pi,
 # sign + notarize when Apple secrets are configured, ad-hoc sign otherwise.
 # Windows stays a local-development build (see AGENTS.md) and is not built here.

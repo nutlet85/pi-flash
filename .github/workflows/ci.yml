@@ -1,0 +1,45 @@
+# PR / main 质量门禁（DOCS_WORKFLOW_OPT §8.4、§9）。
+# 三个命令按评审清单原样跑：cargo check --workspace、cargo test -p pi-link、scripts/check_arch.sh。
+# check_arch.sh 内部调用 `python` 与 `cargo`（并会再 build app、跑全仓 cargo test）。
+# python-is-python3 只为让脚本里的 `python` 在 ubuntu 镜像上找得到，不改脚本。
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: packages for gpui and check_arch.sh
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python-is-python3 \
+            pkg-config \
+            libgtk-3-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libx11-dev \
+            libvulkan-dev \
+            libssl-dev \
+            libfontconfig1-dev \
+            libasound2-dev
+
+      - name: cargo check --workspace
+        run: cargo check --workspace
+
+      - name: cargo test -p pi-link
+        run: cargo test -p pi-link
+
+      - name: scripts/check_arch.sh
+        run: scripts/check_arch.sh
