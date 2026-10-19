@@ -58,7 +58,7 @@ AGENTS.md                 ← ≤120 行索引
 ### P3 CI / 工作流
 
 10. 新增 `ci.yml`：`cargo check --workspace`、`cargo test -p pi-link`、`scripts/check_arch.sh`  
-11. `release-macos.yml` 保持 disabled（文件留在 workflows/，只加停用注释）  
+11. `release-macos.yml`：本 fork 通过只保留 `workflow_dispatch` 来停用（上游的 `disabled_manually` 在这里不成立）。job 内容不改  
 12. `scripts/agent-workspace.sh`：多会话并行时强制，单会话可选  
 13. 可选 `scripts/check_product_guard.sh`（禁区 warn）— 本批不做  
 
@@ -183,7 +183,7 @@ A1 一次切断接线（含下表全部符号），A2 再物理删除。A0 不�
 
 | 动作 | 路径 | 理由 | Opus |
 |---|---|---|---|
-| DEFER | `.github/workflows/release-macos.yml` | D12 非本周期 | 同意保持停用。A0 只加文件头注释（GitHub 端 `disabled_manually`，见 RELEASE.md）。触发和步骤不改，不移入 `disabled/` |
+| DEFER | `.github/workflows/release-macos.yml` | D12 非本周期 | 本 fork 未在 GitHub 端 `disabled_manually`（那只对上游成立）。停用方式改为只保留 `workflow_dispatch`。job 内容不改，不移入 `disabled/` |
 | REWRITE/ADD | `.github/workflows/ci.yml`（新建） | 质量门禁 | 同意。跑 `cargo check --workspace`、`cargo test -p pi-link`、`scripts/check_arch.sh` |
 | REWRITE | `scripts/agent-workspace.sh` 的使用规则 | 收口期 | 改为：**多会话并行时强制，单会话可选**。脚本本身 A0 不改 |
 | N/A | 上游 sync 脚本 | D13 | 改为 **N/A**。树中不存在 sync 脚本（`scripts/` 下无 upstream/sync）。不要再找文件来归档 |
@@ -225,7 +225,7 @@ A1 一次切断接线（含下表全部符号），A2 再物理删除。A0 不�
 
 | 批次 | 内容 | 前置 |
 |---|---|---|
-| A0 | 第 1–7 条文档改动：PRODUCT / INTENT / 本文入库并修订；AGENTS、progress、ARCHITECTURE、PORT_PLAN、buglist 页顶、模块徽章与页顶、README；`docs/模块设计/README.md`；`ci.yml`；`release-macos.yml` 文件头注释 | 无 |
+| A0 | 第 1–7 条文档改动：PRODUCT / INTENT / 本文入库并修订；AGENTS、progress、ARCHITECTURE、PORT_PLAN、buglist 页顶、模块徽章与页顶、README；`docs/模块设计/README.md`；`ci.yml`（windows-latest）；`release-macos.yml` 只保留 `workflow_dispatch` | 无 |
 | A1 | 切断 060 接线（§8.2 全部符号，含 Settings `TAB_REMOTE`，PR 描述引用授权），编译通过 | A0 |
 | A2 | 物理删 wxprobe 与 `remote_control`，清 workspace members，parity 归档到 `docs/archive/060-parity/` | A1 编译通过 |
 | A3 | `InputState.read_only`、`file.save` 返回 read_only 错误、Open-in、md 默认文档模式且两种视图只读、插图不再写盘 | A0 |

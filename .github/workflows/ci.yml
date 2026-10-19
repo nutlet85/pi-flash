@@ -1,7 +1,9 @@
 # PR / main 质量门禁（DOCS_WORKFLOW_OPT §8.4、§9）。
-# 三个命令按评审清单原样跑：cargo check --workspace、cargo test -p pi-link、scripts/check_arch.sh。
-# check_arch.sh 内部调用 `python` 与 `cargo`（并会再 build app、跑全仓 cargo test）。
-# python-is-python3 只为让脚本里的 `python` 在 ubuntu 镜像上找得到，不改脚本。
+# 按 D12，正式发版平台是 Windows，所以跑在 windows-latest。
+# 三个命令：cargo check --workspace、cargo test -p pi-link、scripts/check_arch.sh。
+# vendor/pi 的 node_modules 不入库；pi-link 的 vendor 测试要先按 AGENTS Quick Start 做 npm ci。
+# check_arch.sh 是 bash，并且调用 python。Windows runner 上用 shell: bash，python 由 setup-python 放到 PATH。
+# RUST_MIN_STACK 来自 AGENTS 的 Windows 测试命令，给本 job 和 check_arch.sh 内部的 cargo test 用。
 
 name: ci
 
@@ -10,9 +12,12 @@ on:
   push:
     branches: [main]
 
+env:
+  RUST_MIN_STACK: 33554432
+
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -20,22 +25,19 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: packages for gpui and check_arch.sh
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python-is-python3 \
-            pkg-config \
-            libgtk-3-dev \
-            libsoup-3.0-dev \
-            libwebkit2gtk-4.1-dev \
-            libxkbcommon-dev \
-            libwayland-dev \
-            libx11-dev \
-            libvulkan-dev \
-            libssl-dev \
-            libfontconfig1-dev \
-            libasound2-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vendor/pi/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: vendor/pi npm ci
+        working-directory: vendor/pi
+        run: npm ci
 
       - name: cargo check --workspace
         run: cargo check --workspace
@@ -44,4 +46,5 @@ jobs:
         run: cargo test -p pi-link
 
       - name: scripts/check_arch.sh
+        shell: bash
         run: scripts/check_arch.sh

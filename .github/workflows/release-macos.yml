@@ -1,5 +1,7 @@
-# 按 D12 停用：正式发版仅 Windows。GitHub 端 disabled_manually（见 docs/RELEASE.md
-# 平台范围段）。勿重新启用。本文件的 on: 触发和 job 步骤保持原样，直到阶段 E 另案。
+# 按 D12 停用：正式发版仅 Windows，只能手动触发。
+# nutlet85/pi-flash 这个 fork 上，该 workflow 并没有在 GitHub 端 disabled_manually
+# （那只对上游 danielbill 仓库成立）。这里通过只保留 workflow_dispatch 来停用：
+# push / pull_request 不再触发。job 内容保持原样，直到阶段 E 另案。不要加回自动触发。
 #
 # macOS build bundle (pi-flash-650): build the .app with the vendored pi,
 # sign + notarize when Apple secrets are configured, ad-hoc sign otherwise.
@@ -8,11 +10,6 @@
 name: release-macos
 
 on:
-  push:
-    branches: [main]
-    tags: ["v*"]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 env:

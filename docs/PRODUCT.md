@@ -135,7 +135,7 @@ RPC/会话池、对话与工具卡、会话工作区、Composer/Recipe 基础、
 | `docs/buglist.md` 作为活台账 | **归档只读** | D16 |
 | 上游导向叙事（必跟 fork sync、回贡献 KPI） | **删除/改写** | D13 |
 | 重复/空壳模块设计且能力已砍 | **归档**（060 / 090 / 025）；不在 A0 删文件 | D19 |
-| 停用且无计划的 workflow（如正式 mac release） | **保持 disabled**（文件头注明，触发逻辑不改） | D12 |
+| 停用且无计划的 workflow（正式 mac release） | **本 fork 只保留 `workflow_dispatch`**（job 内容不改）。上游的 `disabled_manually` 在本 fork 不成立 | D12 |
 
 **删除验收**：对应入口/菜单/文档主叙事消失（归档文档保留，页顶声明下线）；`cargo check --workspace` / `cargo test -p pi-link` 仍过。bd 建好之后，bd 中有关闭该项的任务记录。**bd 建好之前，用 PR 描述里的勾选清单代替。**
 

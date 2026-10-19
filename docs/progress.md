@@ -23,7 +23,7 @@
 - workspace：`crates/pi-link` + `crates/app` + `crates/wxprobe`（只服务 060，
   待 A1/A2 移除）+ `vendor/pi` 钉版；gpui 0.2.2 vendored。
 - 发版：**正式平台 Windows x64**（D12）。操作唯一路径 `docs/RELEASE.md`。
-  macOS workflow 保持停用。
+  macOS workflow 在本 fork 上只保留手动触发（`workflow_dispatch`）。
 - 文档权威：PRODUCT → INTENT → ARCHITECTURE。`docs/PORT_PLAN.md` 已
   superseded。`docs/buglist.md` 已归档。任务和缺陷进 bd（D16）；bd 未建时
   删除验收用 PR 勾选清单。交互定案在 INTENT D20。

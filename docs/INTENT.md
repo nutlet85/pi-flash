@@ -143,7 +143,7 @@
 ### D12 — 第一目标平台
 
 - **状态**：accepted（2026-10-19）  
-- **决策**：正式发版 / 支持承诺 = **Windows-only**（`docs/RELEASE.md`）。macOS = **best-effort 源码构建**，不进正式 Release，不做签名/公证/自动更新承诺。`release-macos.yml` 保持停用至阶段 E（GitHub 端 `disabled_manually`，见 RELEASE.md 平台范围段）。文件可以留在 `.github/workflows/`，不要重新启用。  
+- **决策**：正式发版 / 支持承诺 = **Windows-only**（`docs/RELEASE.md`）。macOS = **best-effort 源码构建**，不进正式 Release，不做签名/公证/自动更新承诺。`release-macos.yml` 停用至阶段 E：本 fork 没有 GitHub 端 `disabled_manually`（那只对上游 danielbill 仓库成立），通过只保留 `workflow_dispatch` 来停用。文件留在 `.github/workflows/`，不要加回 push / pull_request。  
 - **分离**：① Mac 能否开发构建 ≠ ② CI 是否保证 mac 绿 ≠ ③ 是否正式发 mac 包。本决策只承诺 ③=Win。
 
 ### D13 — 与上游关系
