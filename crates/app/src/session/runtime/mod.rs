@@ -43,8 +43,6 @@ pub(crate) enum SessionEvent {
     ListDirty,
     /// extension UI request (active session only surfaces the dialog)
     ExtUi(pi_link::protocol::ExtensionUiRequest),
-    /// assistant 流式输出（060 微信回推：文本累积 / tool_call 处 force flush）
-    Assistant(pi_link::protocol::AssistantEvent),
     /// get_state arrived with a pending rename prefill
     RenameReady(String),
     /// get_available_models arrived: the model catalog is project-level

@@ -37,7 +37,6 @@ mod i18n;
 #[cfg(test)]
 mod i18n_audit;
 mod models_config;
-mod remote_control;
 mod startup;
 mod services;
 mod session;

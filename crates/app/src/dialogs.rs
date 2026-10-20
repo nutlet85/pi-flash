@@ -73,9 +73,6 @@ pub(crate) fn render_dialogs(
             if let Some(Dialog::FileDirty { paths }) = chat.dlg.dialog.as_ref() {
                 root = root.child(render_file_dirty(chat, weak, paths, t));
             }
-            if let Some(Dialog::WxQr) = chat.dlg.dialog.as_ref() {
-                root = root.child(crate::remote_control::render_wx_qr(chat, weak, t));
-            }
             if let Some(Dialog::FileSearch { input, scroll }) = chat.dlg.dialog.as_ref() {
                 root = root.child(render_file_search(chat, weak, input, scroll, t, cx));
             }

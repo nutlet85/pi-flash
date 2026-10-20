@@ -686,12 +686,6 @@ pub(super) fn dispatch(
             chat.mc_remove_dialog_close(confirmed, cx);
             ok()
         }
-        method::WX_QR_OPEN => {
-            chat.aux.remote.begin_qr();
-            chat.dlg.dialog = Some(crate::Dialog::WxQr);
-            cx.notify();
-            ok()
-        }
         method::DIALOG_CLOSE => {
             chat.dlg.dialog = None;
             cx.notify();

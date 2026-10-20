@@ -101,14 +101,12 @@ pub mod method {
     pub const THEME_SET: &str = "theme.set";
     pub const LANG_SET: &str = "lang.set";
     pub const DIALOG_CLOSE: &str = "dialog.close";
-    /// 060 远程控制：开扫码弹窗并发起取码（UI 测试用；内容现读 remote.qr）
     /// 081 自动更新：点「下载完成，点击重启更新」（UI 测试用；走与
     /// 版本号位点击完全相同的 restart_to_apply_update，成功即本进程退出）
     pub const UPDATE_RESTART: &str = "update.restart";
     /// 模型选择弹窗：开（与 inputpanel「模型 ∨」同一个构造路径；UI 测试用，
     /// 列表内容读 dialogs 面的 `model_rows`）
     pub const MODEL_PICKER_OPEN: &str = "model.picker_open";
-    pub const WX_QR_OPEN: &str = "wx.qr_open";
     pub const PROJECT_SWITCH: &str = "project.switch";
     /// psp 项目行 ＋ 按钮同源入口（切到该项目并新建会话）；UI 测试用
     pub const PROJECT_NEW_SESSION_IN: &str = "project.new_session_in";

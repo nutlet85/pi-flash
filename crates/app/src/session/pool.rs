@@ -99,10 +99,6 @@ impl Chat {
                     cx.notify();
                 }
                 SessionEvent::ExtUi(req) => {
-                    // 微信端与桌面端**并行**拿到同一请求（060 §4.1）：两边都要
-                    // 渲染一份文本，但只有一方能应答 —— 桌面 ext_respond 会
-                    // clear_pending，pi 侧也只 resolve 一次（§8 档 2 不重复消费）
-                    chat.aux.remote.on_ext_ui(req);
                     if is_active {
                         let req = req.clone();
                         chat.on_ext_ui(req, cx);
@@ -111,14 +107,6 @@ impl Chat {
                         // badge surfaces it; popped when user switches there
                         rt.update(cx, |r, _| r.ext_queue.push(req.clone()));
                         cx.notify();
-                    }
-                }
-                SessionEvent::Assistant(ev) => {
-                    // 只回推**活跃会话**的输出（与入站投递口径一致，避免串会话）
-                    if is_active {
-                        for text in chat.aux.remote.on_assistant(&ev) {
-                            chat.aux.remote.send(&text);
-                        }
                     }
                 }
                 SessionEvent::Models(models) => {
