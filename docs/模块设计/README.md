@@ -47,7 +47,7 @@
 | 050 | [050-滚动优化.md](050-滚动优化.md) | active | |
 | 051 | [051-apikey管理.md](051-apikey管理.md) | active | |
 | 052 | [052-会话管理.md](052-会话管理.md) | active | 自动清理见 INTENT D20 |
-| 060 | [060-远程控制-微信.md](060-远程控制-微信.md) | archived | 已下线（D14），仅存档。代码 A1/A2 删除 |
+| 060 | [060-远程控制-微信.md](060-远程控制-微信.md) | archived | 已下线（D14），仅存档。代码已于 A2 删除；对照夹具见 [archive/060-parity](../archive/060-parity/) |
 | 080 | [080-软件分发.md](080-软件分发.md) | active | 发版操作以 `docs/RELEASE.md` 为准 |
 | 081 | [081-软件自动更新.md](081-软件自动更新.md) | active | Windows |
 | 082 | [082-快捷键设计.md](082-快捷键设计.md) | active | |

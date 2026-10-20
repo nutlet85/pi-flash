@@ -55,7 +55,6 @@ crates/app/src/
 ├── function_panel/    左 dock 域:mod(psp 列表渲染 + HoverCard/PspMenu/Tree*
 │                      overlay 状态类型) + psp_actions + psp_overlays +
 │                      file_tree + file_actions + git_panel
-├── remote_control/    微信桥(060;mod/menu/pipeline)。D14 待删（A2 移除）
 ├── services/          无 UI 助手(pi-web lib/ parity)
 ├── session/           会话域:mod(sessionView 组装/列表) + runtime/(mod 结构+
 │                      生命周期+泵、events 事件臂、send 发送路径+rpc 门面、
@@ -67,7 +66,7 @@ crates/app/src/
 │                      new_session + tools_recipe
 ├── settings/          设置页(models/general/plugins/skills/mcp/
 │                      custom_models/misc;McProbe/PkgOp 各归其页)。
-│                      remote（TAB_REMOTE）D14 待删，A1 切断（改 Settings 的授权见 DOCS §8.2）
+│                      remote（TAB_REMOTE）已删（A1，D14；授权见 DOCS §8.2）
 └── ui/                通用件:tokens/button/text_input/composer_input/dropdown/
                        overlay/popup/vlist/psp_scrollbar/tooltip
 ```

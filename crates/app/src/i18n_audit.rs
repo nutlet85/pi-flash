@@ -85,48 +85,14 @@ mod audit {
 
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(rd) = std::fs::read_dir(dir) else { return };
-        // 只下钻本目录模块文件里声明过的子目录。未接入编译的目录（阶段 A
-        // 先切断接线、源码仍留在树上）不应再要求 TABLE 里有它的键。
-        let declared = module_src(dir).unwrap_or_default();
         for e in rd.flatten() {
             let p = e.path();
             if p.is_dir() {
-                let name = p.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                if !declares_mod(&declared, name) {
-                    continue;
-                }
                 walk(&p, out);
             } else if p.extension().and_then(|s| s.to_str()) == Some("rs") {
                 out.push(p);
             }
         }
-    }
-
-    /// 声明本目录子模块的源文件：目录模块读 `mod.rs`，crate 根读 `main.rs`。
-    fn module_src(dir: &Path) -> Option<String> {
-        for name in ["mod.rs", "main.rs", "lib.rs"] {
-            let p = dir.join(name);
-            if p.is_file() {
-                return std::fs::read_to_string(p).ok();
-            }
-        }
-        None
-    }
-
-    /// `mod name` / `pub mod name` 作为独立标识，不把更长的标识前缀算进去。
-    fn declares_mod(src: &str, name: &str) -> bool {
-        let needle = format!("mod {name}");
-        let mut from = 0;
-        while let Some(at) = src[from..].find(&needle) {
-            let abs = from + at;
-            let after = abs + needle.len();
-            let next = src[after..].chars().next();
-            if !next.is_some_and(|c| c.is_alphanumeric() || c == '_') {
-                return true;
-            }
-            from = after;
-        }
-        false
     }
 
     /// 去掉纯注释行后拼回整段文本（跨行调用才能被整段正则扫到）

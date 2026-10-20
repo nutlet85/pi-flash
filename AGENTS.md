@@ -21,7 +21,7 @@ RUST_MIN_STACK=33554432 cargo test -p pi-link   # 协议/路径测试都在 pi-l
 - **发布产物不落本机**：只留 `target/`（如 `target/release/pi-flash.exe`）。禁止复制或替换本机已安装的 payload，也不要生成 `.new` 暂存。
 - CHANGELOG 发版驱动，平时勿碰。
 - 禁用 `cargo fmt`。格式化用 `scripts/fmt.sh <改过的 .rs>`（见 [engineering.md](docs/agents/engineering.md)）。
-- 如非用户授权，禁止修改 Settings 模块。A1 改 `settings/remote.rs` 与 `TAB_REMOTE` 的授权写在 DOCS §8.2。
+- 如非用户授权，禁止修改 Settings 模块。A1 已删除 `settings/remote.rs` 与 `TAB_REMOTE`，授权写在 DOCS §8.2。
 - 产品边界以 PRODUCT 为准。删文件对照 DOCS §8 / INTENT D19。
 - 任务与缺陷只进 bd（落地方式见 INTENT D16）。bd 建好前，删除验收用 PR 描述里的勾选清单。禁止再写活 buglist。
 
@@ -42,7 +42,7 @@ RUST_MIN_STACK=33554432 cargo test -p pi-link   # 协议/路径测试都在 pi-l
 
 # 架构
 
-- workspace：`crates/pi-link`（钉版 pi RPC，测试在此）+ `crates/app`（GPUI）+ `crates/wxprobe`（只服务 060；A1 摘依赖，A2 删除）。
+- workspace：`crates/pi-link`（钉版 pi RPC，测试在此）+ `crates/app`（GPUI）。`crates/wxprobe` 已于 A2 删除。
 - gpui 0.2.2 / gpui-component vendored：`[patch.crates-io]` → `vendor/gpui`、`vendor/gpui-component`。
 - 主题：`appearance/theme.rs`。
 
@@ -57,7 +57,6 @@ crates/app/src/
   terminal/  i18n.rs  appearance/  automation/  function_panel/  services/
   session/  settings/  ui/
   editor/           只读预览（D10b）；可写主路径在 A3 收口
-  remote_control/   微信桥（060）；D14 待删（A2 移除）
 ```
 
 # 领域笔记

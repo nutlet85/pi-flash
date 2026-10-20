@@ -149,22 +149,22 @@ D15 金字塔、D16 台账、D19 减法删除、D20 交互定案 — 全文见 I
 
 ### 8.2 代码 / crate 类（微信远程 D14）
 
-A1 一次切断接线（含下表全部符号），A2 再物理删除。A0 不动这些文件。
+A1 已切断接线（含下表全部符号），A2 已物理删除目录。A0 未改这些文件。
 
 | 动作 | 路径 / 模式（`88ed6f3` 核对） | 理由 | Opus |
 |---|---|---|---|
-| DELETE（A2）；A1 先切断 | `crates/app/src/remote_control/**` | D14 | 同意。A1 一次切干净，不要先 cfg 隐藏再拖 |
-| DELETE（A1 切断） | `crates/pi-link/src/automation.rs` `WX_QR_OPEN`（约 :111） | D14 | 同意，补漏 |
-| DELETE（A1 切断） | `crates/app/src/automation/handlers.rs` 约 :689–691（`WX_QR_OPEN` 臂） | D14 | 同意，补漏 |
-| DELETE（A1 切断） | `crates/app/src/automation/snapshot.rs` 约 :694（`Dialog::WxQr`）、:760–771（`wx_qr` / `wx_running` / `wx_bound` / `wx_bind_code`） | D14 | 同意。评审写到 :769；现树 wx 字段延续到 :771，A1 按符号切完 |
-| DELETE（A1 切断） | `crates/app/src/shell/types.rs` 约 :45–47 `Dialog::WxQr` | D14 | 同意，补漏 |
-| DELETE（A1 切断） | `crates/app/src/ext_ui.rs` 约 :333 注释与 :343–344 `remote.clear_pending` | D14 | 同意，补漏 |
-| DELETE（A1 切断） | `main.rs` 约 :40 `mod remote_control`；`shell/chat.rs` 约 :54 与 :696 的 `remote` 字段；`startup.rs` 约 :490–493 `spawn_wx_pump`；`dialogs.rs` 约 :77 `render_wx_qr` | D14 | 同意，补漏 |
-| DELETE（A1 切断） | `crates/app/src/session/pool.rs` 约 :105、:119–120（`aux.remote.on_ext_ui` / `on_assistant`） | D14 | A0 核对时补上。评审清单未点名，现树有接线，A1 必须一起切 |
-| DELETE（A1 切断） | `crates/app/src/i18n.rs` 的 `remote.*` 文案键 | D14 | 同意，补漏 |
-| DELETE（A1 切断） | `crates/app/src/settings/remote.rs` 与 `settings/mod.rs` 的 `TAB_REMOTE`（约 :43，渲染臂约 :470） | D14 | 同意。**改 Settings 已获用户授权**（本清单即授权；A1 的 PR 描述须引用本行与 AGENTS「非授权禁止改 Settings」） |
-| DELETE（A2 物理删；A1 先摘依赖） | `crates/wxprobe`（workspace member，见根 `Cargo.toml` members；`crates/app/Cargo.toml` 约 :55 注释写明只服务 060） | D14 | 同意。确认只服务 060。A1 切依赖（含 workspace members），A2 物理删。`crates/wxprobe/parity/` 与其中 README 归档到 `docs/archive/060-parity/`，不丢对照夹具 |
-| REWRITE | 根 `Cargo.toml` workspace members 去掉 `crates/wxprobe` | D14 | 同意，放在 A1/A2，不在 A0 |
+| ✅ 已完成（A2 已删；A1 已切断） | `crates/app/src/remote_control/**` | D14 | 同意。A1 一次切干净，不要先 cfg 隐藏再拖 |
+| ✅ 已完成（A1 已切断） | `crates/pi-link/src/automation.rs` `WX_QR_OPEN`（约 :111） | D14 | 同意，补漏 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/automation/handlers.rs` 约 :689–691（`WX_QR_OPEN` 臂） | D14 | 同意，补漏 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/automation/snapshot.rs` 约 :694（`Dialog::WxQr`）、:760–771（`wx_qr` / `wx_running` / `wx_bound` / `wx_bind_code`） | D14 | 同意。评审写到 :769；现树 wx 字段延续到 :771，A1 按符号切完 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/shell/types.rs` 约 :45–47 `Dialog::WxQr` | D14 | 同意，补漏 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/ext_ui.rs` 约 :333 注释与 :343–344 `remote.clear_pending` | D14 | 同意，补漏 |
+| ✅ 已完成（A1 已切断） | `main.rs` 约 :40 `mod remote_control`；`shell/chat.rs` 约 :54 与 :696 的 `remote` 字段；`startup.rs` 约 :490–493 `spawn_wx_pump`；`dialogs.rs` 约 :77 `render_wx_qr` | D14 | 同意，补漏 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/session/pool.rs` 约 :105、:119–120（`aux.remote.on_ext_ui` / `on_assistant`） | D14 | A0 核对时补上。评审清单未点名，现树有接线，A1 必须一起切 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/i18n.rs` 的 `remote.*` 文案键 | D14 | 同意，补漏 |
+| ✅ 已完成（A1 已切断） | `crates/app/src/settings/remote.rs` 与 `settings/mod.rs` 的 `TAB_REMOTE`（约 :43，渲染臂约 :470） | D14 | 同意。**改 Settings 已获用户授权**（本清单即授权；A1 的 PR 描述须引用本行与 AGENTS「非授权禁止改 Settings」） |
+| ✅ 已完成（A2 已删；A1 已摘依赖） | `crates/wxprobe`（workspace member，见根 `Cargo.toml` members；`crates/app/Cargo.toml` 约 :55 注释写明只服务 060） | D14 | 同意。确认只服务 060。A1 切依赖（含 workspace members），A2 物理删。`crates/wxprobe/parity/` 与其中 README 归档到 `docs/archive/060-parity/`，不丢对照夹具 |
+| ✅ 已完成（A1 已去掉 member） | 根 `Cargo.toml` workspace members 去掉 `crates/wxprobe` | D14 | 同意，放在 A1/A2，不在 A0 |
 | N/A | `docs/CHANGELOG.md`、`docs/CHANGELOG_EN.md` | 铁律 | 不碰。发版驱动，平时勿碰 |
 | N/A | `scripts/check_arch.sh` | 与 060 无关 | 不用改 |
 
