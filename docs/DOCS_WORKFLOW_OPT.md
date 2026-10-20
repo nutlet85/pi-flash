@@ -173,11 +173,11 @@ A1 已切断接线（含下表全部符号），A2 已物理删除目录。A0 �
 | 动作 | 路径 / 模式 | 理由 | Opus |
 |---|---|---|---|
 | ✅ 已完成（A3） | 编辑器打开路径：可写 → 只读预览 + Open-in。实现约束见 INTENT D10b | D10b | 同意。`InputState.read_only` + `EDITOR_READ_ONLY` 已落地 |
-| ✅ 已完成（A3，同一 read_only 关掉） | 「自动保存恒开、无开关」（`tabs.rs` 约 :358，`AUTOSAVE_DEBOUNCE_MS=1000` → 约 :341 `std::fs::write`） | D10b | **风险项已收口**。这是 2026-10-10 用户定案（D20），和只读冲突。A3 用同一个 `read_only` 开关关掉它，没有另留「恒开」路径。写盘函数仍在，A4 可选删 |
-| ✅ 已完成（A3） | `file.save`：op 保留；只读下返回 `{"error":"read_only (D10b)"}`。Ctrl+S（`main.rs` 约 :233）一并关掉 | D10b | 同意。成功标准 = 实际写盘次数为 0，不是删掉写盘函数。`file.save` / `file.set_text` 返回错误，不返回 ok；Ctrl+S 走进 `write_file_back` 的同一拒绝 |
+| ✅ 已完成（A3 关掉；A4 删函数） | 「自动保存恒开、无开关」（原 `tabs.rs` `AUTOSAVE_DEBOUNCE_MS` → `std::fs::write`） | D10b | **风险项已收口**。A3 用 `read_only` 关掉，没有另留「恒开」路径。A4 删掉 autosave 与 `write_file_back` |
+| ✅ 已完成（A3 op；A4 去掉 Ctrl+S） | `file.save`：op 保留；只读下返回 `{"error":"read_only (D10b)"}` | D10b | 同意。成功标准 = 实际写盘次数为 0。`file.save` / `file.set_text` 仍返回错误。A4 去掉只会产生失败 toast 的 Ctrl+S 绑定 |
 | N/A | LSP / 未完成「重型编辑」堆料（`crates/` 下零命中） | D10b | 改为 **N/A**。`vendor/gpui-component/src/input/lsp/` **保留但禁止接线**；接线即违反 D10b |
-| DELETE（A4 可选） | 只读之后不可达的写盘：FileDirty 弹窗、autosave、`markdown/attachments.rs` 约 :93 的插图写盘 | D10b | 同意放在 A4，且 A4 可选。A3 之后这些路径被开关挡住即可 |
-| DEFER | 整目录物理删除 `editor/` | 先语义只读 | **永久 DEFER**。现树 22 个 `.rs`、7729 行（评审快照写 23 文件 / 43 处外部引用；行数仍是 7729，文件数按 `find` 为 22）。外部引用面很宽，阶段 A 不物理删 |
+| ✅ 已完成（A4） | 只读之后不可达的写盘：FileDirty 弹窗、autosave、`markdown/attachments.rs` 插图写盘 | D10b | 已删。Open-in、读路径、md 预览、shell_open、外部改动重载保留。树里「新建文件」写空文件不是这条路径 |
+| DEFER | 整目录物理删除 `editor/` | 先语义只读 | **永久 DEFER**。A4 删了 `markdown/attachments.rs` 后 editor 下 21 个 `.rs`。外部引用面仍宽，阶段 A 不物理删目录 |
 
 ### 8.4 工作流 / 脚本类
 
@@ -229,6 +229,6 @@ A1 已切断接线（含下表全部符号），A2 已物理删除目录。A0 �
 | A1 | 切断 060 接线（§8.2 全部符号，含 Settings `TAB_REMOTE`，PR 描述引用授权），编译通过 | A0 |
 | A2 | 物理删 wxprobe 与 `remote_control`，清 workspace members，parity 归档到 `docs/archive/060-parity/` | A1 编译通过 |
 | A3 | `InputState.read_only`、`file.save` 返回 read_only 错误、Open-in、md 默认文档模式且两种视图只读、插图不再写盘 | A0 |
-| A4 | 可选：清理只读后不可达代码（FileDirty 弹窗、autosave、attachments 写盘） | A3 |
+| A4 | 已完成：清理只读后不可达写盘（FileDirty、autosave、attachments 写盘、Ctrl+S） | A3 |
 
 每批 PR 必须 `cargo check --workspace` 与 `cargo test -p pi-link` 全绿。A0 起建议同时跑 `scripts/check_arch.sh`（`ci.yml` 三者都跑）。

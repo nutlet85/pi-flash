@@ -10,19 +10,20 @@
 //! - markdown：Markdown 渲染器（聊天正文 + md 预览），含 render/
 //!   {html,math,mermaid} 富渲染组件
 //!   └─ wysiwyg：Markdown 所见即所得（Live Preview，024 设计）
-//! - file_content：文件字节 ↔ 文本解码/编码（Zed file_content.rs 逐字
-//!   移植：BOM/二进制判定/chardetng 嗅探），打开与保存共用
+//! - file_content：文件字节 → 文本解码（Zed file_content.rs 移植：
+//!   BOM/二进制判定/chardetng 嗅探）。`encode_text` 只服务解码往返测试
 //!
 //! vendor 编辑底座见 `vendor/gpui-component/src/input/`
 //! （rope/光标/undo/IME），本域不碰内核。
 //!
-//! D10b：[`EDITOR_READ_ONLY`] 同时关掉编辑器写入口和写盘。A4 才删被挡住的代码。
+//! D10b：[`EDITOR_READ_ONLY`] 关掉编辑器写入口。A4 删掉被挡住的写盘
+//! （autosave、`write_file_back`、FileDirty、md 插图落盘）。`file.save` /
+//! `file.set_text` 仍保留 op，返回 [`READ_ONLY_ERROR`]。
 
-/// D10b：壳内文件视图只读。创建编辑器、`write_file_back`、`file.save` /
-/// `file.set_text` 共用这一开关。
+/// D10b：壳内文件视图只读。创建编辑器时传给 `InputState::read_only`。
 pub(crate) const EDITOR_READ_ONLY: bool = true;
 
-/// 只读拒绝文案（PRODUCT §2.2 #3）。automation 错误 message 与写盘返回值都用它。
+/// 只读拒绝文案（PRODUCT §2.2 #3）。`file.save` / `file.set_text` 的错误 message。
 pub(crate) const READ_ONLY_ERROR: &str = "read_only (D10b)";
 
 pub mod markdown;

@@ -72,7 +72,7 @@ Agent 真相在 Pi；壳负责极速 UI、会话编排、Review、权限/模式�
 5. PRODUCT / INTENT / ARCHITECTURE / PORT_PLAN 对做/不做无矛盾  
 6. D19 清单中「必删」类在阶段 A 有明确 PR 与勾选
 
-成功标准 #3 量的是实际写盘次数：A3 之后写盘代码仍可留在树里，但被 read_only 开关挡住，所以次数为 0。A4 才可选清理那些不可达路径。
+成功标准 #3 量的是实际写盘次数：A3 用 read_only 挡住写盘，次数为 0。A4 删掉了因此不可达的写盘路径；`file.save` 仍返回 read_only 错误。
 
 ### 2.3 非目标
 

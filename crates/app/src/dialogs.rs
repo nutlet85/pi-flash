@@ -10,7 +10,7 @@ use gpui::{App, Div, MouseButton, SharedString, div, px, relative, rgb};
 use crate::Dialog;
 use crate::Chat;
 use crate::TextInput;
-use crate::i18n::{tf, tr};
+use crate::i18n::tr;
 use crate::session::model_picker::RegistryState;
 use crate::services::format::time_ago;
 use crate::appearance::theme;
@@ -69,9 +69,6 @@ pub(crate) fn render_dialogs(
                     t,
                     cx,
                 ));
-            }
-            if let Some(Dialog::FileDirty { paths }) = chat.dlg.dialog.as_ref() {
-                root = root.child(render_file_dirty(chat, weak, paths, t));
             }
             if let Some(Dialog::FileSearch { input, scroll }) = chat.dlg.dialog.as_ref() {
                 root = root.child(render_file_search(chat, weak, input, scroll, t, cx));
@@ -213,148 +210,6 @@ fn render_file_search(
                 ),
         );
     dialog_shell(chat, weak, panel)
-}
-
-/// 023 fileView：关闭带未保存修改的文件 tab 前确认（保存并关闭 / 不保存
-/// 关闭 / 取消，对齐 Zed 的三选）。
-fn render_file_dirty(
-    chat: &Chat,
-    weak: &gpui::WeakEntity<Chat>,
-    paths: &[PathBuf],
-    t: &theme::Theme,
-) -> Div {
-    let _ = chat;
-    let weak_save = weak.clone();
-    let weak_drop = weak.clone();
-    let weak_cancel = weak.clone();
-    let p_save: Vec<PathBuf> = paths.to_vec();
-    let p_drop: Vec<PathBuf> = paths.to_vec();
-    // 单文件照旧显示文件名；批量（标签右键 Close Others/All 收拢）显示
-    // 数量 + 前 3 个名字（zed「N unsaved」同款语义，三键对整批生效）
-    let name: SharedString = match paths {
-        [p] => p
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_default()
-            .into(),
-        many => {
-            let shown: Vec<String> = many
-                .iter()
-                .take(3)
-                .map(|p| {
-                    p.file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| p.display().to_string())
-                })
-                .collect();
-            let more = if many.len() > 3 { " …" } else { "" };
-            format!(
-                "{} {}{}",
-                tf(
-                    "conflict.unsaved_n_files",
-                    &[("n", many.len().to_string())]
-                ),
-                shown.join("、"),
-                more
-            )
-            .into()
-        }
-    };
-    let btn = |id: &'static str, label: &'static str, accent: bool| {
-        div()
-            .id(id)
-            .px(px(12.))
-            .py(px(5.))
-            .rounded(px(7.))
-            .text_size(crate::appearance::ui_size(12.))
-            .cursor_pointer()
-            .when(accent, |d| {
-                d.bg(rgb(t.accent)).text_color(rgb(t.accent_contrast))
-            })
-            .when(!accent, |d| {
-                d.border_1().border_color(rgb(t.border))
-            })
-            .hover(|s| s.bg(rgb(t.bg_hover)))
-            .child(SharedString::from(label.to_string()))
-    };
-    dialog_shell(
-        chat,
-        weak,
-        div()
-            .w(px(380.))
-            .p(px(18.))
-            .bg(rgb(t.bg))
-            .border_1()
-            .border_color(gpui::rgba(theme::border_alpha(t, 0x8c)))
-            .rounded(px(10.))
-            .shadow_lg()
-            .flex()
-            .flex_col()
-            .gap(px(10.))
-            .child(
-                div()
-                    .text_size(crate::appearance::ui_size(13.5))
-                    .font_weight(gpui::FontWeight::SEMIBOLD)
-                    .text_color(rgb(t.text))
-                    .child(SharedString::from(tr("conflict.unsaved_count").to_string())),
-            )
-            .child(
-                div()
-                    .text_size(crate::appearance::ui_size(12.))
-                    .text_color(rgb(t.text_dim))
-                    .child(SharedString::from(
-                        format!("{} {name}", tr("conflict.unsaved_list")),
-                    )),
-            )
-            .child(
-                div()
-                    .flex()
-                    .justify_end()
-                    .gap(px(8.))
-                    .child(
-                        btn("fv-dirty-cancel", tr("action.cancel"), false).on_mouse_down(
-                            gpui::MouseButton::Left,
-                            move |_, _, cx| {
-                                let _ = weak_cancel.update(cx, |c, cx| {
-                                    c.dlg.dialog = None;
-                                    cx.notify();
-                                });
-                            },
-                        ),
-                    )
-                    .child(
-                        btn("fv-dirty-drop", tr("conflict.close_without_saving"), false).on_mouse_down(
-                            gpui::MouseButton::Left,
-                            move |_, _, cx| {
-                                let _ = weak_drop.update(cx, |c, cx| {
-                                    // 不保存关闭 = 整批丢弃（批量收拢时对全部
-                                    // 脏文件生效；单关时集合只有一个）
-                                    for p in &p_drop {
-                                        c.discard_file_tab(p, cx);
-                                    }
-                                    c.dlg.dialog = None;
-                                    cx.notify();
-                                });
-                            },
-                        ),
-                    )
-                    .child(
-                        btn("fv-dirty-save", tr("conflict.save_and_close"), true).on_mouse_down(
-                            gpui::MouseButton::Left,
-                            move |_, _, cx| {
-                                let _ = weak_save.update(cx, |c, cx| {
-                                    for p in &p_save {
-                                        c.save_file(p, cx);
-                                        c.discard_file_tab(p, cx);
-                                    }
-                                    c.dlg.dialog = None;
-                                    cx.notify();
-                                });
-                            },
-                        ),
-                    ),
-            ),
-    )
 }
 
 /// 042 ProviderPicker（对齐 pi-web AddProviderPicker 内容与版式）：近满窗

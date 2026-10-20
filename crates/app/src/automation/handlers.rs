@@ -411,16 +411,8 @@ pub(super) fn dispatch(
             chat.open_file_tab(path, cx);
             ok()
         }
-        // 023 fileView：保存 / 关闭。close 对脏缓冲会转成确认弹窗——事务
-        // 范式里用 ui.snapshot 的 dialogs surface + file.close 收尾。
-        method::FILE_SAVE => {
-            if crate::editor::EDITOR_READ_ONLY {
-                return Err(("read_only".into(), crate::editor::READ_ONLY_ERROR.into()));
-            }
-            let path = params_path(params, "path")?;
-            chat.save_file(&path, cx);
-            ok()
-        }
+        // 023 fileView：保存 / 关闭。D10b 保留 file.save op，只读下不写盘。
+        method::FILE_SAVE => Err(("read_only".into(), crate::editor::READ_ONLY_ERROR.into())),
         method::FILE_CLOSE => {
             let path = params_path(params, "path")?;
             if !chat
@@ -433,27 +425,8 @@ pub(super) fn dispatch(
             chat.close_file_tab(&path, cx);
             ok()
         }
-        method::FILE_SET_TEXT => {
-            if crate::editor::EDITOR_READ_ONLY {
-                return Err(("read_only".into(), crate::editor::READ_ONLY_ERROR.into()));
-            }
-            let path = params_path(params, "path")?;
-            let text = params
-                .get("text")
-                .and_then(Value::as_str)
-                .ok_or_else(|| bad("需要 {\"text\": \"内容\"}"))?
-                .to_string();
-            let ed = chat
-                .ws
-                .file_cache
-                .get(&path)
-                .and_then(|f| f.editor.clone())
-                .ok_or_else(|| not_found("文件没有编辑器（未渲染）"))?;
-            ed.update(cx, |st, scx| st.set_value(text, window, scx));
-            // set_value 发 Change → dirty 按「编辑器值 != 磁盘真值」比较落位
-            cx.notify();
-            ok()
-        }
+        // D10b：op 保留。set_value 会把缓冲改脏并曾经触发写盘，只读下直接拒绝。
+        method::FILE_SET_TEXT => Err(("read_only".into(), crate::editor::READ_ONLY_ERROR.into())),
         // 冲突横幅「重新加载」：磁盘为准（丢弃本地未保存修改）——与 banner
         // 按钮同一方法，让冲突裁决路径可被自动化断言
         method::FILE_RELOAD => {

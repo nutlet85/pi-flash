@@ -1,12 +1,13 @@
 //! 文件 tab 生命周期：打开路由（二进制/超限拒绝、已开复用）、
-//! 保存/自动保存（023，Zed after-timeout 同构）、外部改动检测与冲突 banner、
-//! tab 激活（顺序稳定不重排，082 二期定夺）/关闭/无条件丢弃。
+//! 外部改动检测与冲突 banner、tab 激活（顺序稳定不重排，082 二期定夺）
+//! /关闭丢弃。
+//!
+//! D10b/A4：只读预览没有可成功的写盘。autosave、`write_file_back`、
+//! FileDirty「保存并关闭」已删。`file.save` 仍在 automation 里返回
+//! `read_only (D10b)`，不进这里。
 //! （P2 归并：actions_panels 的 tab 侧。）
 
 use crate::*;
-
-/// 自动保存静默期（023；Zed autosave after_timeout 同构）。
-const AUTOSAVE_DEBOUNCE_MS: u64 = 1000;
 
 /// tab 换位后激活下标的平移（纯函数，供单测）：remove(from) 后 >from 的
 /// -1，insert(to) 后 >=to 的 +1；被拖 tab 本身（a == from）跟随到 to。
@@ -80,7 +81,7 @@ impl Chat {
         let kind = super::kind::kind_of(&path);
         let mut ft = FileTab::from_disk(String::new());
         if let Some(format) = kind.try_binary(&bytes) {
-            // 图片查看 tab（zed ImageView）：无缓冲，保存/冲突检测按 binary 位跳过
+            // 图片查看 tab（zed ImageView）：无缓冲，冲突检测按 binary 位跳过
             ft.binary = true;
             ft.image = Some(format);
         } else {
@@ -90,8 +91,6 @@ impl Chat {
             match super::file_content::decode_text(bytes) {
                 Ok(decoded) => {
                     ft = FileTab::from_disk(decoded.text);
-                    ft.encoding = decoded.encoding;
-                    ft.has_bom = decoded.has_bom;
                 }
                 Err(_) => {
                     ft.binary = true;
@@ -114,28 +113,13 @@ impl Chat {
         cx.notify();
     }
 
-    /// 关文件 tab：有未保存修改（或挂着外部改动冲突）先弹确认，否则直接
-    /// 关。zed parity：已从磁盘消失（Deleted）且无未保存修改的缓冲不算
-    /// 脏——直接关，不弹「未保存的修改」；脏的照旧弹（保存并关闭=重建文件）。
+    /// 关文件 tab。只读预览没有可落盘的未保存缓冲（D10b），关闭直接丢弃。
     pub(crate) fn close_file_tab(&mut self, path: &Path, cx: &mut Context<Self>) {
-        let dirty = self
-            .ws.file_cache
-            .get(path)
-            .map(|f| match f.conflict {
-                Some(crate::FileConflict::Deleted) => f.dirty,
-                _ => f.dirty || f.conflict.is_some(),
-            })
-            .unwrap_or(false);
-        if dirty {
-            self.dlg.dialog = Some(crate::Dialog::FileDirty { paths: vec![path.to_path_buf()] });
-            cx.notify();
-            return;
-        }
         self.discard_file_tab(path, cx);
     }
 
-    /// 关一个自由 tab（tab 行尾 × 与标签右键菜单 Close 共用）：文件走脏
-    /// 确认；终端/更新日志直接关 + 内容区回退（原 × 闭包逻辑收拢成方法，
+    /// 关一个自由 tab（tab 行尾 × 与标签右键菜单 Close 共用）：文件直接
+    /// 丢弃；终端/更新日志直接关 + 内容区回退（原 × 闭包逻辑收拢成方法，
     /// 两条入口同源）。
     pub(crate) fn close_tab_at(&mut self, ix: usize, cx: &mut Context<Self>) {
         let Some(tab) = self.ws.panel_tabs.get(ix).cloned() else {
@@ -174,10 +158,9 @@ impl Chat {
 
     /// 批量关自由 tab（topbar 标签右键菜单移植 zed：Close Others/Left/
     /// Right/All 共用核心）。`targets` = 待关下标集合；`focus` = 关完要
-    /// 激活的 tab（右键那个，Close All 传 None）。干净 tab 直接关；脏
-    /// 文件不逐个弹——收拢进一个 FileDirty 确认（zed「N unsaved」三键
-    /// 同构：保存并关闭/不保存关闭对整批生效，取消则脏 tab 留着）。会话
-    /// tab 不在 panel_tabs 里，天然不被波及（首标签恒不可关）。
+    /// 激活的 tab（右键那个，Close All 传 None）。文件 tab 直接丢弃
+    /// （只读，无未保存确认）。会话 tab 不在 panel_tabs 里，天然不被波及
+    /// （首标签恒不可关）。
     pub(crate) fn close_tabs_batch(
         &mut self,
         mut targets: Vec<usize>,
@@ -191,36 +174,15 @@ impl Chat {
         targets.dedup();
         // focus 按身份追踪：批量移除会让下标平移，事后按下标找必指错
         let focus_tab = focus.and_then(|f| self.ws.panel_tabs.get(f).cloned());
-        let mut dirty: Vec<PathBuf> = Vec::new();
         // 倒序移除：前面的下标不因删除漂移
         for ix in targets.iter().rev() {
             let Some(tab) = self.ws.panel_tabs.get(*ix).cloned() else {
                 continue;
             };
             match tab {
-                PanelTab::File(p) => {
-                    // 脏判据与 close_file_tab 同源（Deleted 且干净不算脏）
-                    let is_dirty = self
-                        .ws
-                        .file_cache
-                        .get(&p)
-                        .map(|f| match f.conflict {
-                            Some(crate::FileConflict::Deleted) => f.dirty,
-                            _ => f.dirty || f.conflict.is_some(),
-                        })
-                        .unwrap_or(false);
-                    if is_dirty {
-                        dirty.push(p);
-                    } else {
-                        self.discard_file_tab(&p, cx);
-                    }
-                }
+                PanelTab::File(p) => self.discard_file_tab(&p, cx),
                 _ => self.close_panel_tab(*ix, cx),
             }
-        }
-        if !dirty.is_empty() {
-            dirty.reverse(); // 回正序：与标签视觉一致（左→右）
-            self.dlg.dialog = Some(crate::Dialog::FileDirty { paths: dirty });
         }
         match focus_tab.and_then(|t| self.ws.panel_tabs.iter().position(|p| p == &t)) {
             Some(f) => {
@@ -258,7 +220,7 @@ impl Chat {
         }
     }
 
-    /// 无条件丢弃文件 tab（确认弹窗三个按钮的公共尾）。
+    /// 丢弃文件 tab（关闭的唯一路径）。
     pub(crate) fn discard_file_tab(&mut self, path: &Path, cx: &mut Context<Self>) {
         let Some(ix) = self
             .ws.panel_tabs
@@ -302,97 +264,7 @@ impl Chat {
         cx.notify();
     }
 
-    /// 保存文件 tab（Ctrl+S / 关闭确认「保存并关闭」共用）：编辑器在则取
-    /// 编辑器值，写盘成功后刷新磁盘真值缓存与外部改动基准。
-    pub(crate) fn save_file(&mut self, path: &Path, cx: &mut Context<Self>) {
-        // 二进制占位 tab 无缓冲可存，直接短路（不弹「已保存」假提示）
-        if self.ws.file_cache.get(path).is_some_and(|f| f.binary) {
-            return;
-        }
-        let err = self.write_file_back(path, cx);
-        if let Some(e) = err {
-            self.set_status(format!("{}: {e}", crate::i18n::tr("file_view.save_failed")), cx);
-            return;
-        }
-        self.set_status(crate::i18n::tr("status.saved").to_string(), cx);
-        cx.notify();
-    }
-
-    /// 写盘 + 刷新磁盘真值/基准/脏位。Err = 写盘失败的错误串（调用方决定
-    /// 提示方式：手动保存 toast，自动保存静默）。
-    fn write_file_back(&mut self, path: &Path, cx: &mut Context<Self>) -> Option<String> {
-        if super::EDITOR_READ_ONLY {
-            return Some(super::READ_ONLY_ERROR.to_string());
-        }
-        let Some(ft) = self.ws.file_cache.get(path) else {
-            return None;
-        };
-        let text = match ft.editor.as_ref() {
-            Some(ed) => ed.read(cx).value().to_string(),
-            None => ft.content.clone(),
-        };
-        // 按 tab 记录的磁盘编码编码回盘（zed encode_text 同款：UTF-8 无 BOM
-        // 原样直写；UTF-16/遗留编码/BOM 文件往返保持，不静默转 UTF-8）
-        let bytes = super::file_content::encode_text(text.clone(), ft.encoding, ft.has_bom);
-        // zed fs.save 同款：先建父目录再写——已删文件保存即重建（目录被
-        // 一并删除时也能恢复）；目录健在时 create_dir_all 是空操作
-        if let Some(parent) = path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                return Some(e.to_string());
-            }
-        }
-        if let Err(e) = std::fs::write(path, &bytes) {
-            return Some(e.to_string());
-        }
-        if let Some(ft) = self.ws.file_cache.get_mut(path) {
-            ft.content = text;
-            ft.dirty = false;
-            ft.conflict = None;
-            ft.disk_sig = file_sig(path);
-        }
-        cx.notify();
-        None
-    }
-
-    /// 023 自动保存（Zed after-timeout 同构）：编辑停顿约 1 秒写盘。每次
-    /// 脏变起一个定时器；静默期内的后续编辑各自再起定时器，先到的发现
-    /// 「最后编辑 < 1s」就让位退出，最晚的那个落盘。冲突挂着不自动写
-    /// （等用户在横幅裁决），写盘静默（不抢状态栏）。
-    /// （2026-10-10 用户定夺：恒开，无开关——默认行为即唯一行为）
-    pub(crate) fn autosave_later(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-        cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor()
-                    .timer(std::time::Duration::from_millis(AUTOSAVE_DEBOUNCE_MS))
-                    .await;
-                let proceed = this.update(cx, |c, _| {
-                    c.ws.file_cache.get(&path).is_some_and(|f| {
-                        f.dirty
-                            && f.conflict.is_none()
-                            && f.last_edit
-                                .is_some_and(|t| t.elapsed().as_millis() as u64 >= AUTOSAVE_DEBOUNCE_MS)
-                    })
-                });
-                if !proceed.unwrap_or(false) {
-                    return; // 已保存/被丢弃/冲突/仍在输入（后续定时器接管）
-                }
-                let _ = this.update(cx, |c, cx| {
-                    let _ = c.write_file_back(&path, cx);
-                });
-                return;
-            }
-        })
-        .detach();
-    }
-
-    /// Ctrl+S（FileSave action，"Input" 上下文绑定）：保存当前文件 tab。
-    pub(crate) fn save_active_file(&mut self, cx: &mut Context<Self>) {
-        if let Some(path) = self.active_file_path() {
-            self.save_file(&path, cx);
-        }
-    }
-
-    /// 冲突 banner「重新加载」：磁盘为准，丢弃本地未保存修改。
+    /// 冲突 banner「重新加载」：磁盘为准，丢弃本地缓冲。
     pub(crate) fn file_reload_from_disk(&mut self, path: &Path, cx: &mut Context<Self>) {
         let decoded = match std::fs::read(path).map(super::file_content::decode_text) {
             Ok(Ok(d)) => d,
@@ -404,8 +276,6 @@ impl Chat {
         };
         if let Some(ft) = self.ws.file_cache.get_mut(path) {
             ft.content = decoded.text;
-            ft.encoding = decoded.encoding;
-            ft.has_bom = decoded.has_bom;
             ft.dirty = false;
             ft.reload_pending = true;
             ft.conflict = None;
@@ -425,9 +295,8 @@ impl Chat {
     }
 
     /// 023 外部改动检测（对齐 Zed）：fs 监听泵的每个合批信号跑一遍。
-    /// 无未保存修改 → 自动重载（reload_pending 由渲染帧灌进编辑器）；
-    /// 有修改 → 标冲突，等用户在 banner 上裁决。自己的保存已把基准刷到
-    /// 写后元数据，本轮信号比较为空转。
+    /// 缓冲与磁盘真值一致 → 自动重载（reload_pending 由渲染帧灌进编辑器）；
+    /// 缓冲真脏 → 标冲突，等用户在 banner 上裁决（不写盘）。
     pub(crate) fn check_external_file_changes(&mut self, cx: &mut Context<Self>) {
         self.ws.ext_probe.0 += 1;
         let mut changed = false;
@@ -449,7 +318,7 @@ impl Chat {
             match std::fs::metadata(&path) {
                 Err(_) => {
                     // 文件已从磁盘消失：标 Deleted（zed DiskState::Deleted 同构
-                    // ——缓冲保留可继续编辑、tab 删除线、保存即重建；不弹横幅）。
+                    // ——缓冲保留、tab 删除线；不弹横幅，也不把缓冲写回）。
                     // 已在 Deleted 态不重复置位（watcher 泵 150ms 一轮，避免
                     // 每轮空 notify）
                     if ft.conflict != Some(crate::FileConflict::Deleted) {
@@ -467,8 +336,6 @@ impl Chat {
                             self.ws.ext_probe.1 += 1;
                             if !ft.dirty {
                                 ft.content = decoded.text;
-                                ft.encoding = decoded.encoding;
-                                ft.has_bom = decoded.has_bom;
                                 ft.reload_pending = true;
                                 ft.conflict = None;
                             } else if ft.conflict != Some(crate::FileConflict::Changed) {
@@ -692,36 +559,6 @@ impl Chat {
 #[cfg(test)]
 mod tests {
     use super::shifted_active;
-    use gpui::AppContext as _;
-
-    /// D10b：write_file_back 在只读下返回错误，临时文件字节不动。
-    /// 守卫在读 file_cache / fs::write 之前，所以缓存里没有这个路径也必须拒绝。
-    #[gpui::test]
-    fn write_file_back_read_only_returns_error_and_keeps_file(cx: &mut gpui::TestAppContext) {
-        let dir = std::env::temp_dir().join(format!(
-            "pf-d10b-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("keep.txt");
-        let original = b"original-bytes";
-        std::fs::write(&path, original).unwrap();
-
-        cx.update(|cx| {
-            let chat = cx.new(|cx| crate::Chat::new(cx));
-            chat.update(cx, |chat, cx| {
-                let err = chat.write_file_back(&path, cx);
-                assert_eq!(err.as_deref(), Some(crate::editor::READ_ONLY_ERROR));
-            });
-        });
-
-        assert_eq!(std::fs::read(&path).unwrap(), original);
-        let _ = std::fs::remove_dir_all(&dir);
-    }
 
     #[test]
     fn file_tab_defaults_to_document_mode() {
