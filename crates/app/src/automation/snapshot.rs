@@ -690,7 +690,6 @@ fn dialogs_surface(chat: &Chat, cx: &Context<Chat>) -> Value {
         Dialog::ProjectPicker { .. } => "project_picker",
         Dialog::ImagePreview { .. } => "image_preview",
         Dialog::SessionInfo { .. } => "session_info",
-        Dialog::FileDirty { .. } => "file_dirty",
         Dialog::FileSearch { .. } => "file_search",
     });
     // 打开项目菜单：列表数据随弹窗一起上报（扫描是异步回填，UI 测试

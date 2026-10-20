@@ -1,8 +1,9 @@
 //! 文件字节 → 文本解码/编码（Zed `crates/language/src/file_content.rs`
 //! 逐字移植，2026-10-14 取自 zed HEAD 4c902c9）：BOM 识别、二进制判定
 //! （magic 头表 + 前 1KB NUL 分布/文本相似度 + UTF-16 合理性校验）、
-//! 非 Unicode 遗留编码 chardetng 嗅探。打开/外部重载走 [`decode_text`]，
-//! 保存走 [`encode_text`]（编码与 BOM 往返保持，Zed Buffer 同语义）。
+//! 非 Unicode 遗留编码 chardetng 嗅探。打开/外部重载走 [`decode_text`]。
+//! [`encode_text`] 是解码的逆操作：A4 去掉写盘后生产路径不再调用，往返
+//! 测试用它证明 decode 没有丢编码。
 //!
 //! 与 Zed 的差异仅一处：无（本文件为纯函数域，测试也随 Zed 原样搬入）。
 
@@ -14,7 +15,10 @@ pub const FILE_ANALYSIS_BYTES: usize = 1024;
 
 pub struct DecodedText {
     pub text: String,
+    /// 磁盘编码。A4 去掉写回后生产路径只取 `text`；往返测试仍读这两个字段。
+    #[allow(dead_code)]
     pub encoding: &'static Encoding,
+    #[allow(dead_code)]
     pub has_bom: bool,
 }
 
@@ -53,6 +57,7 @@ pub fn decode_text(bytes: Vec<u8>) -> Result<DecodedText> {
     })
 }
 
+#[allow(dead_code)] // 生产写盘已删；解码往返测试调用
 pub fn encode_text(text: String, encoding: &'static Encoding, has_bom: bool) -> Vec<u8> {
     if encoding == UTF_8 && !has_bom {
         return text.into_bytes();

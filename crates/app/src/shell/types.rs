@@ -36,11 +36,6 @@ pub(crate) enum Dialog {
     /// topbar ⋯ 菜单：系统提示词 / 工具定义（窗体 = 设置弹窗那套大卡片，
     /// 见 top_panels / ui::overlay::big_card）
     SessionInfo { kind: TopPanel },
-    /// 023 fileView：关闭带未保存修改的文件 tab 前确认。单关持一个 path；
-    /// 标签右键批量关闭（tab 菜单移植 zed「N unsaved」）收拢整批待裁决
-    /// 文件，弹窗三键对整批生效。持 path 不持 ix——弹窗存活期间的增删
-    /// 不会让索引漂移。
-    FileDirty { paths: Vec<PathBuf> },
     /// 021 文件树操作栏「搜索文件」：500×500 居中窗，按文件名过滤当前项目
     /// 清单（load_listing 现扫，命中在 `file_search_hits`）。`scroll` 挂
     /// 结果列表自绘滚动条（跨帧复用，vlist.rs「血案」注释）。
@@ -270,54 +265,46 @@ impl PanelTab {
     }
 }
 
-/// 外部改动冲突类型（023）：文件在磁盘上被改/删，而本缓冲区有未保存修改。
+/// 外部改动冲突类型（023）：文件在磁盘上被改/删。只读预览不把缓冲写回。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FileConflict {
-    /// 磁盘内容已变；banner 提供重新加载
+    /// 磁盘内容已变且本地缓冲已脏；banner 提供重新加载 / 保留缓冲（不写盘）
     Changed,
     /// 文件已从磁盘消失（zed DiskState::Deleted 同构，2026-10-11 改版）：
-    /// 缓冲保留可继续编辑、tab 标题删除线、不弹横幅；手动保存即重建
-    /// （含父目录），自动保存对它保持沉默（防误重建）
+    /// 缓冲保留、tab 标题删除线、不弹横幅。只读下不重建文件。
     Deleted,
 }
 // 023 文件编辑展示页：编辑器型文件（代码/文本/md 源码态，由 editor/kind.rs
-// 注册表决定）都进 CodeEditor（Zed parity——Zed 里不分文件大小、一律可
-// 编辑）。曾按 50K 行上限加过「超限转只读虚拟化列表」的特殊分支，已删除：
-// 特殊路径既不是 Zed 行为，也让大文件不可编辑。图片走 ImageKind 查看器
+// 注册表决定）都进 CodeEditor。D10b 起该视图只读。图片走 ImageKind 查看器
 // （无编辑器）；html/htm 直接开源码 tab（2026-10-12 二改拍板），「在浏览
 // 器中打开」保留为右键菜单首位文件动作。
 /// 文件 tab 缓冲区状态（023 文件编辑展示页）。
 ///
-/// `content` 是磁盘真值缓存（打开/保存/重载时更新）；`editor` 懒创建——
+/// `content` 是磁盘真值缓存（打开/重载时更新）；`editor` 懒创建——
 /// `InputState::new` 要 `&mut Window`，而 `open_file_tab` 的调用链没有，
 /// 推迟到渲染帧（content.rs file_view）里补。
 pub(crate) struct FileTab {
     pub(crate) content: String,
     pub(crate) editor: Option<gpui::Entity<gpui_component::input::InputState>>,
     /// 编辑器值 != content（订阅 InputEvent::Change 时比较，set_value 也发
-    /// Change 事件，盲标会假脏）
+    /// Change 事件，盲标会假脏）。只读预览下用户改不动文本，正常保持 false；
+    /// 外部改动检测仍用它决定自动重载还是冲突横幅。
     pub(crate) dirty: bool,
     /// md 文档模式 / 源码视图。D10b：默认 false = 文档模式；eye 切换，两种都只读。
     pub(crate) md_source: bool,
     pub(crate) conflict: Option<FileConflict>,
-    /// 外部改动检测基准 (mtime, len)；打开/保存/确认时刷新
+    /// 外部改动检测基准 (mtime, len)；打开/重载/确认时刷新
     pub(crate) disk_sig: Option<(std::time::SystemTime, u64)>,
     /// 磁盘内容已换新（自动重载路径），待渲染帧灌进 editor
     pub(crate) reload_pending: bool,
-    /// 最后一次用户编辑时刻（自动保存静默期判定）
-    pub(crate) last_edit: Option<std::time::Instant>,
     /// 非文本 tab（zed：ImageItem / InvalidItemView 都是「非 Buffer 视图」
-    /// 同构）：无文本缓冲无编辑器——保存/自动保存/外部改动检测按此位全跳
-    /// 过。binary=true 且 image=Some → 图片查看 tab（zed ImageView）；
+    /// 同构）：无文本缓冲无编辑器——外部改动检测按此位跳过。
+    /// binary=true 且 image=Some → 图片查看 tab（zed ImageView）；
     /// image=None → 「无法打开」灰屏（zed InvalidItemView）
     pub(crate) binary: bool,
     /// 图片 tab 的渲染格式（open_file_tab 认领时 magic 嗅探所得；灰屏为
     /// None）。渲染帧 view.rs 按它分流 render_image_surface/unsupported_body
     pub(crate) image: Option<gpui::ImageFormat>,
-    /// 磁盘文件编码（zed Buffer.encoding 同语义，file_content::decode_text
-    /// 所得）：保存按它编码回盘，BOM 往返保持
-    pub(crate) encoding: &'static encoding_rs::Encoding,
-    pub(crate) has_bom: bool,
 }
 
 
@@ -333,12 +320,8 @@ impl FileTab {
             conflict: None,
             disk_sig: None,
             reload_pending: false,
-            last_edit: None,
             binary: false,
             image: None,
-            // 打开/重载路径由 decode_text 覆写；UTF_8 是磁盘缺省（zed 同）
-            encoding: encoding_rs::UTF_8,
-            has_bom: false,
         }
     }
 }

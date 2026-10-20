@@ -450,8 +450,7 @@ fn content_tab(
         // 打开手势（树点开/eye 切源码/链接跳转）才走 pending_focus_file。
         this.activate_content_tab(ix, window, cx);
     });
-    // 行尾 ×（仅激活态由 tab_shell 渲染）——脏 tab 也要能关（关时走
-    // FileDirty 确认弹窗）；id 随 tab 下标唯一（同上）
+    // 行尾 ×（仅激活态由 tab_shell 渲染）。只读预览直接关；id 随 tab 下标唯一
     let close_x = div()
         .id(gpui::ElementId::from((tab_id.clone(), "x")))
         .flex_shrink_0()

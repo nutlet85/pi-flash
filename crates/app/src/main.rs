@@ -82,7 +82,7 @@ pub(crate) const WINDOW_H_MIN: f32 = 600.;
 // no-op 死键）。
 // 082 三期 md 预览滚动六动作（Preview*）：预览容器持焦（key_context
 // "MdPreview"）时方向/翻页/首尾键滚动虚拟列表，预览不再是键盘死角。
-actions!(app, [ComposerUp, ComposerDown, ComposerTab, ComposerPaste, FileSave, OpenProjectPicker, NewSession, OpenSessionSearch, CopyMessageSelection, MaximizeSessionList, MaximizeFileTree, ViewLeft, ViewRight, OpenFileSearch, PreviewUp, PreviewDown, PreviewPageUp, PreviewPageDown, PreviewHome, PreviewEnd]);
+actions!(app, [ComposerUp, ComposerDown, ComposerTab, ComposerPaste, OpenProjectPicker, NewSession, OpenSessionSearch, CopyMessageSelection, MaximizeSessionList, MaximizeFileTree, ViewLeft, ViewRight, OpenFileSearch, PreviewUp, PreviewDown, PreviewPageUp, PreviewPageDown, PreviewHome, PreviewEnd]);
 use i18n::tr;
 use models_config::EnabledState;
 use crate::appearance::theme::theme as T;
@@ -227,9 +227,6 @@ fn main() {
                 // 分流在渲染根 on_action：有消息选区复制消息，否则原样转发
                 // input::Copy，输入框选区照常复制
                 KeyBinding::new("ctrl-c", CopyMessageSelection, Some("Input")),
-                // 023 fileView：编辑器里 Ctrl+S 保存（composer 等其他 Input
-                // 上下文内无人监听该 action，自然空转）
-                KeyBinding::new("ctrl-s", FileSave, Some("Input")),
                 // 082 四期（Zed Pane 模式，替代三期无上下文版）：双绑定锚定——
                 // Some("ContentTabs") 命中内容区任意后代焦点（终端/预览/中性
                 // 锚点，同 gpui 前缀匹配 keymap/context.rs:253）；Some("Input")

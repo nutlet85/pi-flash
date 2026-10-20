@@ -20,8 +20,10 @@ use std::path::Path;
 /// 编辑器实体懒创建：InputState::new 要 `&mut Window`，而 open_file_tab
 /// 的调用链没有——渲染帧是唯一同时持有 window 与 Chat 可变的点。创建时
 /// 订阅 Change 事件；dirty 用「编辑器值 != 磁盘真值缓存」比较（set_value
-/// 也发 Change，盲标会假脏）。编辑器配置（高亮语言/软换行/图片粘贴钩子）
-/// 由 kind handler 产出；`editor_config() = None` 的类型（图片查看器）不建实体。
+/// 也发 Change，盲标会假脏）。只读下替换/粘贴进不了文本，这条比较保持为
+/// 假；外部重载先写 content 再 reload_value，同样不假脏。编辑器配置（高亮
+/// 语言/软换行）由 kind handler 产出；`editor_config() = None` 的类型
+/// （图片查看器）不建实体。
 fn ensure_file_editor(
     chat: &mut Chat,
     path: &Path,
@@ -52,34 +54,20 @@ fn ensure_file_editor(
     });
     ed.update(cx, |st, scx| {
         st.set_value(content, window, scx);
-        // 025 插图（P0）：handler 配了粘贴钩子才挂（目前仅 md）——非 md
-        // 自动不做（文本粘贴照旧）。落盘/引用串见 markdown::attachments。
-        if cfg.image_paste {
-            st.on_image_paste = Some(
-                crate::editor::markdown::attachments::image_paste_hook(path.to_path_buf()),
-            );
-        }
     });
     cx.subscribe(&ed, |this, ed, ev: &gpui_component::input::InputEvent, cx| {
         if matches!(ev, gpui_component::input::InputEvent::Change) {
             let src = ed.entity_id();
-            if let Some((path, ft)) = this.ws.file_cache.iter_mut().find(|(_, f)| {
+            if let Some((_, ft)) = this.ws.file_cache.iter_mut().find(|(_, f)| {
                 f.editor.as_ref().map(|e| e.entity_id()) == Some(src)
             }) {
                 // Rope 与 String 直接比较（ropey PartialEq，零分配 memcmp）；
                 // 原先 value().to_string() 每次编辑都全文物化一遍（4.6MB 文件
                 // 每次按键 ~8ms + 一次全文分配）。
                 let dirty = *ed.read(cx).text() != ft.content;
-                if dirty {
-                    ft.last_edit = Some(std::time::Instant::now());
-                }
                 if ft.dirty != dirty {
                     ft.dirty = dirty;
                     cx.notify();
-                }
-                if dirty {
-                    let p = path.clone();
-                    this.autosave_later(p, cx);
                 }
             }
         }
@@ -177,17 +165,11 @@ pub(crate) fn file_view(
         .flex_col()
         .bg(rgb(t.bg))
         // 023：导航操作栏由壳统一渲染（面包屑 + handler 声明的工具栏按钮）
-        .child(file_nav_bar(chat, weak, kind, &path, cx))
-        // Ctrl+S 保存：action 绑定在 "Input" 上下文（编辑器聚焦时命中），
-        // 由本容器 on_action 接住
-        .on_action(cx.listener(|this, _: &crate::FileSave, _w, cx| {
-            this.save_active_file(cx);
-        }));
+        .child(file_nav_bar(chat, weak, kind, &path, cx));
 
-    // zed 同款：只有「磁盘被改 + 本地有未保存修改」（Changed）才横幅裁决；
-    // Deleted（文件从磁盘消失）不弹横幅——缓冲保留可继续编辑，tab 删除线
-    // 是唯一标记，保存即重建（DiskState::Deleted 语义）。二进制占位 tab
-    // 无缓冲，不参与冲突裁决（check_external_file_changes 同步跳过）
+    // zed 同款：只有「磁盘被改 + 本地缓冲已脏」（Changed）才横幅裁决；
+    // Deleted（文件从磁盘消失）不弹横幅——缓冲保留，tab 删除线是唯一标记。
+    // 二进制占位 tab 无缓冲，不参与冲突裁决（check_external_file_changes 同步跳过）
     if !binary {
         if let Some(c @ crate::FileConflict::Changed) = conflict.as_ref() {
             host = host.child(conflict_banner(weak, &path, c));

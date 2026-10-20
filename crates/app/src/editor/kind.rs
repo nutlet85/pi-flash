@@ -5,13 +5,12 @@
 //! 行，框架不动。
 //!
 //! 职责边界：
-//! - **handler 管**：CodeEditor 配置（高亮语言/软换行/图片粘贴钩子；None
-//!   = 无编辑器类型）、主体渲染算法、工具栏按钮（默认仅搜索；md 追加预览
-//!   eye）、右键菜单文件动作块（默认骨架 = 资源管理器/终端 + 改名/删除）、
+//! - **handler 管**：CodeEditor 配置（高亮语言/软换行；None = 无编辑器
+//!   类型）、主体渲染算法、工具栏按钮（默认仅搜索；md 追加预览 eye）、
+//!   右键菜单文件动作块（默认骨架 = Open-in / 资源管理器/终端 + 改名/删除）、
 //!   是否有源码/预览双态（file.view_mode op 门控）
-//! - **共享基建不管类型**：文本缓冲/脏位/自动保存/外部改动检测/冲突横幅
-//!   （tabs.rs）、面包屑/搜索面板/焦点（view.rs 宿主）——对一切已打开
-//!   tab 统一生效
+//! - **共享基建不管类型**：文本缓冲/外部改动检测/冲突横幅（tabs.rs）、
+//!   面包屑/搜索面板/焦点（view.rs 宿主）——对一切已打开 tab 统一生效
 //!
 //! 与旧实现的分野：txt 与 code 是两个 kind（不再靠 ts_language 回退
 //! "text" 混在一起）；html/htm 与 xml/vue 共用一个 CodeKind（ts_lang
@@ -38,8 +37,6 @@ pub(crate) struct EditorConfig {
     /// WYSIWYG 装饰挂上期间折行必须关（折叠与折行结构互斥，见
     /// markdown::sync_live_decorations——耦合点收在那一个函数里）
     pub soft_wrap: bool,
-    /// 剪贴板图片粘贴落盘钩子（025，仅 md）
-    pub image_paste: bool,
 }
 
 /// 导航操作栏右侧按钮（023：默认仅搜索；md 追加预览切换）。
@@ -144,9 +141,9 @@ struct CodeKind {
     ts_lang: &'static str,
 }
 
-/// Markdown：双态（D10b 默认文档模式；eye 切只读源码视图）、
-/// 图片粘贴插图钩子（025）。软换行开（stock 路径；仅 WYSIWYG 装饰挂上
-/// 期间由 sync_live_decorations 关——折叠与折行互斥）。
+/// Markdown：双态（D10b 默认文档模式；eye 切只读源码视图）。软换行开
+/// （stock 路径；仅 WYSIWYG 装饰挂上期间由 sync_live_decorations 关——
+/// 折叠与折行互斥）。025 插图写盘已在 A4 删除。
 struct MarkdownKind;
 
 /// 图片：gpui img() 查看器，无编辑器、只读。注册即后缀门（zed
@@ -163,7 +160,7 @@ impl FileKind for TextKind {
         "text"
     }
     fn editor_config(&self) -> Option<EditorConfig> {
-        Some(EditorConfig { ts_lang: "text", soft_wrap: true, image_paste: false })
+        Some(EditorConfig { ts_lang: "text", soft_wrap: true })
     }
     fn render_body(&self, cx: &mut Context<Chat>, body: BodyCtx<'_>) -> AnyElement {
         super::view::render_editor_surface(body.chat, body.weak, body.path, cx)
@@ -175,7 +172,7 @@ impl FileKind for CodeKind {
         "code"
     }
     fn editor_config(&self) -> Option<EditorConfig> {
-        Some(EditorConfig { ts_lang: self.ts_lang, soft_wrap: true, image_paste: false })
+        Some(EditorConfig { ts_lang: self.ts_lang, soft_wrap: true })
     }
     fn render_body(&self, cx: &mut Context<Chat>, body: BodyCtx<'_>) -> AnyElement {
         super::view::render_editor_surface(body.chat, body.weak, body.path, cx)
@@ -187,7 +184,7 @@ impl FileKind for MarkdownKind {
         "markdown"
     }
     fn editor_config(&self) -> Option<EditorConfig> {
-        Some(EditorConfig { ts_lang: "markdown", soft_wrap: true, image_paste: true })
+        Some(EditorConfig { ts_lang: "markdown", soft_wrap: true })
     }
     fn supports_view_mode(&self) -> bool {
         true
@@ -474,17 +471,14 @@ mod tests {
     }
 
     /// 编辑器配置：全部 kind 软换行开（md 的关折行只存在于 WYSIWYG 装饰
-    /// 激活期间，由 sync_live_decorations 运行时收口）；md 带图片粘贴钩子；
-    /// 图片无编辑器。
+    /// 激活期间，由 sync_live_decorations 运行时收口）；图片无编辑器。
     #[test]
     fn editor_configs() {
         let md = kind("md").editor_config().unwrap();
         assert_eq!(md.ts_lang, "markdown");
         assert!(md.soft_wrap);
-        assert!(md.image_paste);
         let txt = kind("txt").editor_config().unwrap();
         assert!(txt.soft_wrap);
-        assert!(!txt.image_paste);
         assert!(kind("png").editor_config().is_none());
     }
 
