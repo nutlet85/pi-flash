@@ -308,6 +308,9 @@ pub struct InputState {
     pub(super) last_selected_range: Option<Selection>,
     pub(super) selecting: bool,
     pub(super) disabled: bool,
+    /// PF-023 (D10b): 只读预览。不复用 `disabled`——disabled 会挡住 `set_value`，
+    /// 初次装载和外部重载必须仍能灌文本。守卫只加在替换、IME 标记和粘贴入口。
+    pub(super) read_only: bool,
     pub(super) masked: bool,
     pub(super) clean_on_escape: bool,
     pub(super) soft_wrap: bool,
@@ -427,6 +430,7 @@ impl InputState {
             input_bounds: Bounds::default(),
             selecting: false,
             disabled: false,
+            read_only: false,
             masked: false,
             clean_on_escape: false,
             soft_wrap: true,
@@ -906,6 +910,12 @@ impl InputState {
     #[allow(unused)]
     pub(crate) fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    /// PF-023 (D10b): 只读预览。与 [`Self::disabled`] 独立，不挡住 `set_value`。
+    pub fn read_only(mut self, read_only: bool) -> Self {
+        self.read_only = read_only;
         self
     }
 
@@ -1857,6 +1867,10 @@ impl InputState {
     }
 
     pub(super) fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
+        // PF-023 (D10b): 必须在 on_image_paste 之前返回，否则图片钩子仍会写盘。
+        if self.read_only {
+            return;
+        }
         // PF-025：宿主挂了图片粘贴钩子且剪贴板含图时优先走图片路径；
         // 钩子返回 None（格式不支持/落盘失败）回落文本粘贴。插入由本方法
         // 用 self 完成（钩子是纯函数，不可重入实体）。
@@ -2448,6 +2462,11 @@ impl EntityInputHandler for InputState {
         if self.disabled {
             return;
         }
+        // PF-023 (D10b): 与 disabled 分开。set_value 的多行路径不经这里，
+        // 初次装载和外部重载仍然生效。
+        if self.read_only {
+            return;
+        }
         self.pause_blink_cursor(cx);
 
         let range = range_utf16
@@ -2510,6 +2529,10 @@ impl EntityInputHandler for InputState {
         cx: &mut Context<Self>,
     ) {
         if self.disabled {
+            return;
+        }
+        // PF-023 (D10b): IME 临时插入同样不改文本。
+        if self.read_only {
             return;
         }
         self.lsp.reset();

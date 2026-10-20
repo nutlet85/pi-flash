@@ -57,6 +57,8 @@ pub(crate) enum ToolButton {
 pub(crate) enum MenuAction {
     /// 预览：双态类型源码态专属，点击切回渲染态（edm-preview）
     PreviewToggle,
+    /// 用默认应用打开（D10b Open-in，edm-open-app）
+    OpenDefault,
     /// 在资源管理器中打开（edm-explorer）
     Explorer,
     /// 在终端中打开所在目录（edm-term）
@@ -71,6 +73,7 @@ pub(crate) enum MenuAction {
 
 /// 默认文件动作块：资源管理器/终端 + 分隔 + 改名/删除（023 菜单骨架）。
 const DEFAULT_FILE_ACTIONS: &[MenuAction] = &[
+    MenuAction::OpenDefault,
     MenuAction::Explorer,
     MenuAction::Terminal,
     MenuAction::Sep,
@@ -141,7 +144,7 @@ struct CodeKind {
     ts_lang: &'static str,
 }
 
-/// Markdown：双态（默认源码态 WYSIWYG，024 二改拍板；eye 切渲染预览）、
+/// Markdown：双态（D10b 默认文档模式；eye 切只读源码视图）、
 /// 图片粘贴插图钩子（025）。软换行开（stock 路径；仅 WYSIWYG 装饰挂上
 /// 期间由 sync_live_decorations 关——折叠与折行互斥）。
 struct MarkdownKind;
@@ -195,6 +198,7 @@ impl FileKind for MarkdownKind {
     fn menu_file_actions(&self, source_mode: bool) -> &'static [MenuAction] {
         const SOURCE: &[MenuAction] = &[
             MenuAction::PreviewToggle,
+            MenuAction::OpenDefault,
             MenuAction::Explorer,
             MenuAction::Terminal,
             MenuAction::Sep,
@@ -493,10 +497,12 @@ mod tests {
         assert_eq!(kind("md").toolbar(), &[ToolButton::Eye, ToolButton::Search]);
     }
 
-    /// 右键菜单文件动作块：默认骨架；md 源码态带预览项（浏览器项是路径
-    /// 判据，不在本表）。
+    /// 右键菜单文件动作块：默认骨架含 Open-in 与资源管理器；md 源码态带预览项
+    /// （浏览器项是路径判据，不在本表）。
     #[test]
     fn menus() {
+        assert!(DEFAULT_FILE_ACTIONS.contains(&MenuAction::OpenDefault));
+        assert!(DEFAULT_FILE_ACTIONS.contains(&MenuAction::Explorer));
         assert_eq!(
             kind("txt").menu_file_actions(true),
             DEFAULT_FILE_ACTIONS

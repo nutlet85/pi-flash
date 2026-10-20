@@ -100,6 +100,17 @@ pub(crate) fn editor_menu_layer(
                     }
                 },
             )),
+            crate::editor::kind::MenuAction::OpenDefault => card.child(editor_item(
+                &weak,
+                "edm-open-app",
+                "file",
+                tr("file_view.open_in_default_app"),
+                false,
+                {
+                    let path = path.clone();
+                    move |_c, _cx| crate::services::shell_open::open_in_default_app(&path)
+                },
+            )),
             crate::editor::kind::MenuAction::Explorer => card.child(editor_item(
                 &weak,
                 "edm-explorer",
