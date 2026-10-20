@@ -11,7 +11,7 @@ use crate::settings::plugins::PkgOp;
 use crate::*;
 
 pub(crate) struct Chat {
-    /// 周边面板簇（4ea）：ext UI / 更新 / 远程 / 系统提示词弹窗
+    /// 周边面板簇（4ea）：ext UI / 更新 / 系统提示词弹窗
     pub(crate) aux: AuxUi,
     /// 设置面板簇（4ea）：模型/技能/扩展/MCP 配置状态
     pub(crate) cfg: CfgUi,
@@ -30,7 +30,7 @@ pub(crate) struct Chat {
 }
 
 /// 周边面板状态簇（4ea 字段重组）：扩展 UI 面 / 081 自动更新与更新日志 /
-/// 060 远程控制桥 / 系统提示词·工具定义弹窗。
+/// 系统提示词·工具定义弹窗。
 pub(crate) struct AuxUi {
     // extension UI surface (active session)
     pub(crate) ext_status: Vec<(String, String)>,
@@ -50,8 +50,6 @@ pub(crate) struct AuxUi {
     pub(crate) changelog_scroll: gpui::ScrollHandle,
     /// 082 Pi 扩展更新检测状态（新会话页通知 + 设置·扩展页箭头/按钮消费）
     pub(crate) plugin_updates: services::plugin_updates::UpdatesState,
-    /// 微信远程控制桥（060）：transport + 待答 ExtUi 请求
-    pub(crate) remote: remote_control::RemoteControl,
     /// 工具定义弹窗左列表选中的工具名（pi-web ToolDefinitionsPanel 的
     /// selectedToolName）
     pub(crate) tool_sel: Option<String>,
@@ -693,7 +691,6 @@ impl Chat {
                 changelog: None,
                 changelog_scroll: gpui::ScrollHandle::new(),
                 plugin_updates: services::plugin_updates::UpdatesState::default(),
-                remote: remote_control::RemoteControl::new(),
                 tool_sel: None,
                 sysprompt_scroll: gpui::ScrollHandle::new(),
                 decl_open: [false; 7],
