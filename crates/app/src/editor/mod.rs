@@ -15,6 +15,15 @@
 //!
 //! vendor 编辑底座见 `vendor/gpui-component/src/input/`
 //! （rope/光标/undo/IME），本域不碰内核。
+//!
+//! D10b：[`EDITOR_READ_ONLY`] 同时关掉编辑器写入口和写盘。A4 才删被挡住的代码。
+
+/// D10b：壳内文件视图只读。创建编辑器、`write_file_back`、`file.save` /
+/// `file.set_text` 共用这一开关。
+pub(crate) const EDITOR_READ_ONLY: bool = true;
+
+/// 只读拒绝文案（PRODUCT §2.2 #3）。automation 错误 message 与写盘返回值都用它。
+pub(crate) const READ_ONLY_ERROR: &str = "read_only (D10b)";
 
 pub mod markdown;
 pub mod view;

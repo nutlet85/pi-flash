@@ -414,6 +414,9 @@ pub(super) fn dispatch(
         // 023 fileView：保存 / 关闭。close 对脏缓冲会转成确认弹窗——事务
         // 范式里用 ui.snapshot 的 dialogs surface + file.close 收尾。
         method::FILE_SAVE => {
+            if crate::editor::EDITOR_READ_ONLY {
+                return Err(("read_only".into(), crate::editor::READ_ONLY_ERROR.into()));
+            }
             let path = params_path(params, "path")?;
             chat.save_file(&path, cx);
             ok()
@@ -431,6 +434,9 @@ pub(super) fn dispatch(
             ok()
         }
         method::FILE_SET_TEXT => {
+            if crate::editor::EDITOR_READ_ONLY {
+                return Err(("read_only".into(), crate::editor::READ_ONLY_ERROR.into()));
+            }
             let path = params_path(params, "path")?;
             let text = params
                 .get("text")

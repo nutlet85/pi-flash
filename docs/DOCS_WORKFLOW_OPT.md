@@ -172,9 +172,9 @@ A1 已切断接线（含下表全部符号），A2 已物理删除目录。A0 �
 
 | 动作 | 路径 / 模式 | 理由 | Opus |
 |---|---|---|---|
-| REWRITE（A3） | 编辑器打开路径：可写 → 只读预览 + Open-in。实现约束见 INTENT D10b | D10b | 同意 |
-| 风险 | 「自动保存恒开、无开关」（`tabs.rs` 约 :358，`AUTOSAVE_DEBOUNCE_MS=1000` → 约 :341 `std::fs::write`） | D10b | **风险项**。这是 2026-10-10 用户定案（D20），和只读冲突。A3 用同一个 `read_only` 开关关掉它，不要另留一条「恒开」路径 |
-| REWRITE（A3） | `file.save`：op 保留；只读下返回 `{"error":"read_only (D10b)"}`。Ctrl+S（`main.rs` 约 :233）一并关掉 | D10b | 同意。成功标准 = 实际写盘次数为 0，不是删掉写盘函数 |
+| ✅ 已完成（A3） | 编辑器打开路径：可写 → 只读预览 + Open-in。实现约束见 INTENT D10b | D10b | 同意。`InputState.read_only` + `EDITOR_READ_ONLY` 已落地 |
+| ✅ 已完成（A3，同一 read_only 关掉） | 「自动保存恒开、无开关」（`tabs.rs` 约 :358，`AUTOSAVE_DEBOUNCE_MS=1000` → 约 :341 `std::fs::write`） | D10b | **风险项已收口**。这是 2026-10-10 用户定案（D20），和只读冲突。A3 用同一个 `read_only` 开关关掉它，没有另留「恒开」路径。写盘函数仍在，A4 可选删 |
+| ✅ 已完成（A3） | `file.save`：op 保留；只读下返回 `{"error":"read_only (D10b)"}`。Ctrl+S（`main.rs` 约 :233）一并关掉 | D10b | 同意。成功标准 = 实际写盘次数为 0，不是删掉写盘函数。`file.save` / `file.set_text` 返回错误，不返回 ok；Ctrl+S 走进 `write_file_back` 的同一拒绝 |
 | N/A | LSP / 未完成「重型编辑」堆料（`crates/` 下零命中） | D10b | 改为 **N/A**。`vendor/gpui-component/src/input/lsp/` **保留但禁止接线**；接线即违反 D10b |
 | DELETE（A4 可选） | 只读之后不可达的写盘：FileDirty 弹窗、autosave、`markdown/attachments.rs` 约 :93 的插图写盘 | D10b | 同意放在 A4，且 A4 可选。A3 之后这些路径被开关挡住即可 |
 | DEFER | 整目录物理删除 `editor/` | 先语义只读 | **永久 DEFER**。现树 22 个 `.rs`、7729 行（评审快照写 23 文件 / 43 处外部引用；行数仍是 7729，文件数按 `find` 为 22）。外部引用面很宽，阶段 A 不物理删 |

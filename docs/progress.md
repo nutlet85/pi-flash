@@ -17,7 +17,7 @@
 - **基线** `88ed6f3`（D13 冻结；当时相对上游 ahead 0）。其后上游提交不再同步。
 - **阶段 A**：文档金字塔已入库（PRODUCT / INTENT / DOCS_WORKFLOW_OPT）。
   代码减法按 A1–A4 拆 PR：A1 已切断 060 接线，A2 已删除 wxprobe 与
-  `remote_control`（已删；parity 归档 `docs/archive/060-parity/`），A3 编辑器改只读预览 + Open-in，A4 可选清理不可达写盘。
+  `remote_control`（已删；parity 归档 `docs/archive/060-parity/`），A3 已落地只读预览 + Open-in（`EDITOR_READ_ONLY` / `InputState.read_only`），A4 可选清理不可达写盘。
 - **子代理 M4–M6 已落地**（扩展字段、Settings-子代理页、子代理面板），
   视为会话编排，保留。见里程碑索引顶部三条（2026-10-19）。
 - workspace：`crates/pi-link` + `crates/app`（`crates/wxprobe` 已于 A2 删除）+ `vendor/pi` 钉版；gpui 0.2.2 vendored。
@@ -28,6 +28,7 @@
   删除验收用 PR 勾选清单。交互定案在 INTENT D20。
 
 ## 里程碑索引
+- 2026-10-20 **A3 D10b**：内建编辑器只读预览 + Open-in。写盘与 `file.save` / `file.set_text` 返回 `read_only (D10b)`；md 默认文档模式。
 - 2026-10-19 subagent M2/M3/044核心：codemode fan-out + usage 回流 + 子会话
   codemode 装配；后台投递/控制工具三件/孤儿对账；PF 专属卡（状态徽标/耗时/
   tokens/成本/打开子会话跳转）。full 档 --tools 纳入 agent；子会话判定改

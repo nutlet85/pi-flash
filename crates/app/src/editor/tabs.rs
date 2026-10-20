@@ -321,6 +321,9 @@ impl Chat {
     /// 写盘 + 刷新磁盘真值/基准/脏位。Err = 写盘失败的错误串（调用方决定
     /// 提示方式：手动保存 toast，自动保存静默）。
     fn write_file_back(&mut self, path: &Path, cx: &mut Context<Self>) -> Option<String> {
+        if super::EDITOR_READ_ONLY {
+            return Some(super::READ_ONLY_ERROR.to_string());
+        }
         let Some(ft) = self.ws.file_cache.get(path) else {
             return None;
         };
@@ -689,6 +692,42 @@ impl Chat {
 #[cfg(test)]
 mod tests {
     use super::shifted_active;
+    use gpui::AppContext as _;
+
+    /// D10b：write_file_back 在只读下返回错误，临时文件字节不动。
+    /// 守卫在读 file_cache / fs::write 之前，所以缓存里没有这个路径也必须拒绝。
+    #[gpui::test]
+    fn write_file_back_read_only_returns_error_and_keeps_file(cx: &mut gpui::TestAppContext) {
+        let dir = std::env::temp_dir().join(format!(
+            "pf-d10b-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("keep.txt");
+        let original = b"original-bytes";
+        std::fs::write(&path, original).unwrap();
+
+        cx.update(|cx| {
+            let chat = cx.new(|cx| crate::Chat::new(cx));
+            chat.update(cx, |chat, cx| {
+                let err = chat.write_file_back(&path, cx);
+                assert_eq!(err.as_deref(), Some(crate::editor::READ_ONLY_ERROR));
+            });
+        });
+
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn file_tab_defaults_to_document_mode() {
+        let ft = crate::FileTab::from_disk("# hi".into());
+        assert!(!ft.md_source);
+    }
 
     /// 换位平移穷举：[t0..t4] 里枚举全部 (from, to, a)，用「模拟序列
     /// remove/insert 后查同元素下标」做 oracle 对照。

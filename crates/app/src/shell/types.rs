@@ -297,7 +297,7 @@ pub(crate) struct FileTab {
     /// 编辑器值 != content（订阅 InputEvent::Change 时比较，set_value 也发
     /// Change 事件，盲标会假脏）
     pub(crate) dirty: bool,
-    /// md 默认渲染预览；eye 切源码编辑（拍板 2026-10-07）
+    /// md 文档模式 / 源码视图。D10b：默认 false = 文档模式；eye 切换，两种都只读。
     pub(crate) md_source: bool,
     pub(crate) conflict: Option<FileConflict>,
     /// 外部改动检测基准 (mtime, len)；打开/保存/确认时刷新
@@ -327,10 +327,9 @@ impl FileTab {
             content,
             editor: None,
             dirty: false,
-            // 024 用户拍板（2026-10-10 二改）：md 默认打开 = 源码态（WYSIWYG
-            // 感官完整：折叠/样式/容器 reveal/原子跳词），eye 切回 preview
-            // 渲染页（两者均完好）。
-            md_source: true,
+            // D10b：默认文档模式（取代 2026-10-10「默认源码态」，见 INTENT D20）。
+            // eye 仍切源码视图；两种都只读。
+            md_source: false,
             conflict: None,
             disk_sig: None,
             reload_pending: false,

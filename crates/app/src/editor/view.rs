@@ -14,6 +14,7 @@ use crate::content::empty_hint;
 use crate::i18n::tr;
 use crate::appearance::theme::theme as T;
 use crate::ui::icon;
+use crate::ui::tooltip::WithTip;
 use std::path::Path;
 
 /// 编辑器实体懒创建：InputState::new 要 `&mut Window`，而 open_file_tab
@@ -47,6 +48,7 @@ fn ensure_file_editor(
         gpui_component::input::InputState::new(window, scx)
             .code_editor(cfg.ts_lang)
             .soft_wrap(cfg.soft_wrap)
+            .read_only(super::EDITOR_READ_ONLY)
     });
     ed.update(cx, |st, scx| {
         st.set_value(content, window, scx);
@@ -147,15 +149,17 @@ pub(crate) fn file_view(
     if !binary {
         ensure_file_editor(chat, &path, window, cx);
         consume_file_reload(chat, &path, window, cx);
-        // 开文件即聚焦（Zed 行为；编辑器实体就绪后消费）。082 三期：仅
-        // 源码态消费——预览态（md_source=false）树里没有编辑器元素，聚焦
+        // 开文件即聚焦（Zed 行为；编辑器实体就绪后消费）。082 三期：md
+        // 文档模式（md kind 且 md_source=false）树里没有编辑器元素，聚焦
         // 实体句柄必悬空（docs/agents/gpui.md 悬空句柄陷阱：旧焦点 blur、
         // 新焦点收不到、键落根），预览焦点改由逐帧仲裁交给预览容器；
-        // 意图在此丢弃，等真正切回源码态时的显式手势再置
+        // 意图在此丢弃，等真正切回源码态时的显式手势再置。文本/代码的
+        // md_source 也是 false（D10b 字段默认），但它们始终是源码视图。
         if chat.ws.pending_focus_file.as_deref() == Some(path.as_path()) {
             chat.ws.pending_focus_file = None;
-            let source_mode = chat.ws.file_cache.get(&path).is_some_and(|f| f.md_source);
-            if source_mode
+            let md_preview = kind_of(&path).name() == "markdown"
+                && chat.ws.file_cache.get(&path).is_some_and(|f| !f.md_source);
+            if !md_preview
                 && let Some(ed) = chat.ws.file_cache.get(&path).and_then(|f| f.editor.clone())
                 && !ed.read(cx).focus_handle(cx).is_focused(window)
             {
@@ -321,14 +325,18 @@ fn file_nav_bar(
         }
     }
 
-    // 右侧操作区：handler 声明的按钮序列（023/024：默认仅搜索，md 加预览）。
+    // 右侧操作区：D10b Open-in / 资源管理器在前（文本、代码、md 两种视图
+    // 都看得见；search 仍贴最右，与窗口 close 对齐）。其后是 handler 声明
+    // 的按钮（023/024：默认仅搜索，md 加预览）。
     // 对齐 caption 格网（2026-10-14）：容器无 gap 无右距，每钮自占 42px 格
-    // （与 titlebar 窗口控制同宽同贴缘），search/eye 中心线 = 21/63px，与
-    // close/max 上下垂直对齐
+    // （与 titlebar 窗口控制同宽同贴缘）。
     let ed_for_focus = chat.ws.file_cache.get(path).and_then(|f| f.editor.clone());
     let mut right = div().flex_shrink_0().flex().items_center();
     // 二进制占位 tab 无编辑器：search/eye 都是死钮，整列不渲染
     if !chat.ws.file_cache.get(path).is_some_and(|f| f.binary) {
+        right = right
+            .child(open_default_button(path.to_path_buf()))
+            .child(reveal_button(path.to_path_buf()));
         for btn in kind.toolbar() {
             right = match btn {
                 ToolButton::Eye => right.child(eye_button(weak, source_mode)),
@@ -369,8 +377,7 @@ fn file_nav_bar(
 
 /// 预览切换按钮（ToolButton::Eye，双态类型工具栏；024）：图标 = 点击后的
 /// 动作——源码态显示 eye（回预览），渲染态显示 eye-off（进源码）。
-/// 2026-10-14 用户定夺：源码态不再画 bg_selected 选中底色（md 默认源码
-/// 态，进去即高亮块观感突兀），hover 底色保留。
+/// 2026-10-14 用户定夺：源码态不再画 bg_selected 选中底色，hover 底色保留。
 /// 2026-10-13 用户定夺：eye/eye-off 字形本身已表意，不再用 accent 上色
 /// 区分状态，恒用 text_muted。
 fn eye_button(weak: &gpui::WeakEntity<Chat>, source_mode: bool) -> gpui::AnyElement {
@@ -413,6 +420,57 @@ fn eye_button(weak: &gpui::WeakEntity<Chat>, source_mode: bool) -> gpui::AnyElem
                     crate::ui::tokens::icon::LG,
                     t.text_muted,
                 )),
+        )
+        .into_any_element()
+}
+
+/// D10b Open-in：用系统默认应用打开当前文件（文本 / 代码 / md 两种视图）。
+fn open_default_button(path: std::path::PathBuf) -> gpui::AnyElement {
+    nav_file_button(
+        "fv-open-app",
+        "file",
+        "file_view.open_in_default_app",
+        move |_, _, _| crate::services::shell_open::open_in_default_app(&path),
+    )
+}
+
+/// D10b：在资源管理器中显示当前文件。
+fn reveal_button(path: std::path::PathBuf) -> gpui::AnyElement {
+    nav_file_button(
+        "fv-reveal",
+        "folder-input",
+        "file_tree.reveal_in_explorer",
+        move |_, _, _| crate::services::shell_open::reveal_in_explorer(&path),
+    )
+}
+
+/// 导航栏 42px 图标钮（与 eye/search 同格）。`tip_key` 走 i18n。
+fn nav_file_button(
+    id: &'static str,
+    icon_name: &'static str,
+    tip_key: &'static str,
+    on_down: impl Fn(&gpui::MouseDownEvent, &mut gpui::Window, &mut gpui::App) + 'static,
+) -> gpui::AnyElement {
+    let t = T();
+    div()
+        .w(px(42.))
+        .h(px(32.))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(
+            div()
+                .id(id)
+                .with_tip(tip_key)
+                .size(px(24.))
+                .flex()
+                .items_center()
+                .justify_center()
+                .rounded(px(5.))
+                .cursor_pointer()
+                .hover(|s| s.bg(rgb(t.bg_hover)))
+                .on_mouse_down(MouseButton::Left, on_down)
+                .child(icon(icon_name, crate::ui::tokens::icon::LG, t.text_muted)),
         )
         .into_any_element()
 }
@@ -746,7 +804,52 @@ pub(crate) fn render_editor_surface(
 #[cfg(test)]
 mod tests {
     use super::breadcrumb_segments;
+    use gpui::{AppContext as _, EntityInputHandler};
     use std::path::{Path, PathBuf};
+
+    struct Hold {
+        _input: gpui::Entity<gpui_component::input::InputState>,
+    }
+
+    impl gpui::Render for Hold {
+        fn render(
+            &mut self,
+            _: &mut gpui::Window,
+            _: &mut gpui::Context<Self>,
+        ) -> impl gpui::IntoElement {
+            gpui::Empty
+        }
+    }
+
+    /// D10b：只读编辑器 set_value 能装载；insert / replace / IME 替换不改文本。
+    /// 粘贴（含图片钩子）的守卫在 `paste` 入口、钩子之前，那个方法是
+    /// `pub(super)`，app 侧测不到。
+    #[gpui::test]
+    fn read_only_editor_loads_but_rejects_edits(cx: &mut gpui::TestAppContext) {
+        cx.add_window(|window, cx| {
+            let input = cx.new(|scx| {
+                gpui_component::input::InputState::new(window, scx)
+                    .code_editor("text")
+                    .read_only(true)
+            });
+            input.update(cx, |st, scx| {
+                st.set_value("loaded", window, scx);
+                st.insert("X", window, scx);
+                st.replace("nope", window, scx);
+                EntityInputHandler::replace_text_in_range(st, None, "z", window, scx);
+                EntityInputHandler::replace_and_mark_text_in_range(
+                    st,
+                    None,
+                    "ime",
+                    None,
+                    window,
+                    scx,
+                );
+            });
+            assert_eq!(input.read(cx).value().as_ref(), "loaded");
+            Hold { _input: input }
+        });
+    }
 
     /// 在 cwd 下的相对分段：每段路径累积正确，最后一段 = 全路径。
     #[test]
