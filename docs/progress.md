@@ -12,16 +12,15 @@
 > （2025-09，…）」两节的 2025 日期为早期 agent 幻觉，已随压缩删除——
 > **项目实际始于 2026-09-24**（首次提交 80d80d2）。
 
-## 当前状态（2026-10-19）— workbench 收口阶段 A
+## 当前状态（2026-10-20）— workbench 收口阶段 A
 
 - **基线** `88ed6f3`（D13 冻结；当时相对上游 ahead 0）。其后上游提交不再同步。
 - **阶段 A**：文档金字塔已入库（PRODUCT / INTENT / DOCS_WORKFLOW_OPT）。
-  代码减法按 A1–A4 拆 PR：A1 切断 060 接线，A2 删 wxprobe 与
-  `remote_control`，A3 编辑器改只读预览 + Open-in，A4 可选清理不可达写盘。
+  代码减法按 A1–A4 拆 PR：A1 已切断 060 接线，A2 已删除 wxprobe 与
+  `remote_control`（已删；parity 归档 `docs/archive/060-parity/`），A3 编辑器改只读预览 + Open-in，A4 可选清理不可达写盘。
 - **子代理 M4–M6 已落地**（扩展字段、Settings-子代理页、子代理面板），
   视为会话编排，保留。见里程碑索引顶部三条（2026-10-19）。
-- workspace：`crates/pi-link` + `crates/app` + `crates/wxprobe`（只服务 060，
-  待 A1/A2 移除）+ `vendor/pi` 钉版；gpui 0.2.2 vendored。
+- workspace：`crates/pi-link` + `crates/app`（`crates/wxprobe` 已于 A2 删除）+ `vendor/pi` 钉版；gpui 0.2.2 vendored。
 - 发版：**正式平台 Windows x64**（D12）。操作唯一路径 `docs/RELEASE.md`。
   macOS workflow 在本 fork 上只保留手动触发（`workflow_dispatch`）。
 - 文档权威：PRODUCT → INTENT → ARCHITECTURE。`docs/PORT_PLAN.md` 已

@@ -1,3 +1,5 @@
+ARCHIVED（D14）：Rust 侧已于 A2 删除，cargo run -p wxprobe -- parity 等命令已不可执行，仅作对照存证。
+
 # 对拍 harness（P2 + P3）
 
 跑 **ZCode 真实 TS 源码**产出黄金结果，再与 Rust 实现逐字节比对。
