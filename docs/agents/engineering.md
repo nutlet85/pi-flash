@@ -87,6 +87,13 @@
    zip 夹具）漏 flag，每跑一轮 `cargo test -p app updater::` 就弹一个带进度条
    的 PS 窗抢屏幕（2026-10-18 实锤，agent 代跑测试时尤甚）——已加
    `hidden_powershell()` 帮手统一口径。
+   **不要**用「另起 powershell、5s 等哨兵」模拟文件占用。
+   `cleanup_skips_live_payload_dir` 曾这样写，Actions `windows-latest`
+   上抖（run 39260849749：`spawn` 成功、哨兵 5s 内没落盘）：冷启动经常
+   超过预算，而且刚写出的假 exe 会被 Defender 以共享冲突让
+   `File.Open(..., None)` 直接抛终止错误，哨兵永远不会出现。占用改本进程
+   `OpenOptions::share_mode(0)`；句柄没拿到就失败，禁止在没锁住时把
+   「目录还在」当成跳过成功。
 3. 读 PE Subsystem 别手撸偏移——本地 python 按 `pe+24+68` 读 debug exe 得出 2、
    release 得出 3，与实测行为矛盾；**以「进程树里有没有 conhost / 探针
    attached」为准**，别信自己算的字段。

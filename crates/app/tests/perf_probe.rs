@@ -1,4 +1,10 @@
-//! 大文件打开路径微基准：tmp/perf/perf-80k.txt（4.59MB / 80k 行随机文本）。
+//! 大文件打开路径微基准。
+//!
+//! 优先读 `tmp/perf/perf-80k.txt`（约 4.59MB / 80k 行随机文本）。该路径在
+//! `.gitignore` 的 `tmp/` 下，只存在于本机生成过夹具的工作区，不进 git；
+//! `scripts/check_arch.sh` 的全仓 `cargo test` 在干净 CI 上一定找不到它。
+//! 缺文件时按同样量级合成 ASCII 文本，写到本进程临时目录再读。本地有夹具
+//! 时仍走原文件，方便和 050 历史账单对时。
 //!
 //! 数据段（纯 ropey/String 成本）+ InputState 段（#[gpui::test]，真实
 //! set_value 路径）。与 app 的 open_file_tab → ensure_file_editor →
@@ -8,12 +14,68 @@
 //!   cargo test -p app --test perf_probe --release -- --nocapture
 use gpui::{AppContext as _, Context, IntoElement, Render, TestAppContext, Window};
 use gpui_component::input::RopeExt as _;
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-const PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tmp/perf/perf-80k.txt");
+const LOCAL_FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../tmp/perf/perf-80k.txt");
+
+/// 与历史夹具同量级：80_000 行 × 60 字节（含换行）= 4_800_000 字节。
+const SYNTH_LINES: usize = 80_000;
+const SYNTH_LINE_BYTES: usize = 60;
 
 fn ms(d: Duration) -> String {
     format!("{:>8.2} ms", d.as_secs_f64() * 1000.0)
+}
+
+/// 夹具路径。本地文件存在就用它；否则合成后写入临时目录。
+/// 计时开始前调用，避免把合成/写盘成本算进 `fs::read`。
+fn corpus_path() -> &'static Path {
+    static CELL: OnceLock<PathBuf> = OnceLock::new();
+    CELL.get_or_init(resolve_corpus_path).as_path()
+}
+
+fn resolve_corpus_path() -> PathBuf {
+    let local = PathBuf::from(LOCAL_FIXTURE);
+    if local.is_file() {
+        return local;
+    }
+    let dir = std::env::temp_dir().join(format!("pi-flash-perf-probe-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap_or_else(|err| {
+        panic!(
+            "perf_probe: 无法创建临时夹具目录 {}（本地夹具 {} 不存在）：{err}",
+            dir.display(),
+            local.display()
+        );
+    });
+    let path = dir.join("perf-80k.txt");
+    std::fs::write(&path, synthetic_corpus()).unwrap_or_else(|err| {
+        panic!("perf_probe: 无法写入合成夹具 {}：{err}", path.display());
+    });
+    path
+}
+
+/// 80_000 行纯 ASCII。每行 5 位行号 + `\n`，其余为 `.`。
+/// 纯 ASCII 时 char 数等于 utf16 数，`replace(0..u16len)` 能覆盖全文。
+fn synthetic_corpus() -> Vec<u8> {
+    let mut buf = vec![b'.'; SYNTH_LINES * SYNTH_LINE_BYTES];
+    for i in 0..SYNTH_LINES {
+        let end = (i + 1) * SYNTH_LINE_BYTES;
+        let mut n = i;
+        buf[end - 1] = b'\n';
+        for digit in 1..=5 {
+            buf[end - 1 - digit] = b'0' + (n % 10) as u8;
+            n /= 10;
+        }
+    }
+    buf
+}
+
+fn read_corpus_string() -> String {
+    let path = corpus_path();
+    std::fs::read_to_string(path).unwrap_or_else(|err| {
+        panic!("perf_probe: 读取夹具 {} 失败：{err}", path.display());
+    })
 }
 
 /// 打开路径各阶段在 app 侧的对应关系：
@@ -26,8 +88,12 @@ fn ms(d: Duration) -> String {
 /// 供与 050-滚动优化 §二 的历史账单对照；现行代码已不走这些步骤。
 #[test]
 fn probe_data_stages() {
+    // 路径解析（含缺夹具时的合成写盘）不计入 fs::read。
+    let path = corpus_path();
     let t = Instant::now();
-    let bytes = std::fs::read(PATH).unwrap();
+    let bytes = std::fs::read(path).unwrap_or_else(|err| {
+        panic!("perf_probe: 读取夹具 {} 失败：{err}", path.display());
+    });
     let d_read = t.elapsed();
 
     let t = Instant::now();
@@ -79,6 +145,7 @@ fn probe_data_stages() {
     let d_cmp = t.elapsed();
 
     println!("== 数据段（80k 行 / {} 字节，旧路径留档） ==", rope.len());
+    println!("corpus                  {}", corpus_path().display());
     println!("fs::read                {}", ms(d_read));
     println!("from_utf8_lossy+to_s    {}", ms(d_utf8));
     println!("Rope::from(全文)        {}", ms(d_rope));
@@ -103,7 +170,7 @@ impl Render for Probe {
 
 #[gpui::test]
 fn probe_input_state_open(cx: &mut TestAppContext) {
-    let content = std::fs::read_to_string(PATH).unwrap();
+    let content = read_corpus_string();
 
     cx.add_window(move |window, cx| {
         let t = Instant::now();
@@ -157,7 +224,7 @@ fn probe_input_state_open(cx: &mut TestAppContext) {
 /// LineItem Vec 填充——定位 wrapper reset 的剩余耗时去向。
 #[gpui::test]
 fn probe_reset_path_pieces(cx: &mut TestAppContext) {
-    let content = std::fs::read_to_string(PATH).unwrap();
+    let content = read_corpus_string();
 
     cx.add_window(move |window, cx| {
         let font = window.text_style().font();
@@ -252,7 +319,10 @@ fn probe_code_parse_stages() {
 "#;
     let mut src = String::with_capacity(unit.len() * 2600);
     for i in 0..2600 {
-        src.push_str(unit.replace("generated_item", &format!("generated_item_{i}")).as_str());
+        src.push_str(
+            unit.replace("generated_item", &format!("generated_item_{i}"))
+                .as_str(),
+        );
     }
     let rope = ropey::Rope::from(src.as_str());
 
@@ -281,8 +351,16 @@ fn probe_code_parse_stages() {
     let d_from_u16 = t.elapsed();
     std::hint::black_box(acc);
 
-    println!("== 代码 parse 段（{} 行 / {} 字节） ==", rope.len_lines(ropey::LineType::LF), rope.len());
+    println!(
+        "== 代码 parse 段（{} 行 / {} 字节） ==",
+        rope.len_lines(ropey::LineType::LF),
+        rope.len()
+    );
     println!("SyntaxHighlighter::new(rust) {}", ms(d_new));
     println!("全文 tree-sitter parse       {}", ms(d_parse));
-    println!("utf16 换算 ×1000（文末）     to:{} from:{}", ms(d_to_u16), ms(d_from_u16));
+    println!(
+        "utf16 换算 ×1000（文末）     to:{} from:{}",
+        ms(d_to_u16),
+        ms(d_from_u16)
+    );
 }

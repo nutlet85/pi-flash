@@ -1,0 +1,50 @@
+# PR / main 质量门禁（DOCS_WORKFLOW_OPT §8.4、§9）。
+# 按 D12，正式发版平台是 Windows，所以跑在 windows-latest。
+# 三个命令：cargo check --workspace、cargo test -p pi-link、scripts/check_arch.sh。
+# vendor/pi 的 node_modules 不入库；pi-link 的 vendor 测试要先按 AGENTS Quick Start 做 npm ci。
+# check_arch.sh 是 bash，并且调用 python。Windows runner 上用 shell: bash，python 由 setup-python 放到 PATH。
+# RUST_MIN_STACK 来自 AGENTS 的 Windows 测试命令，给本 job 和 check_arch.sh 内部的 cargo test 用。
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  RUST_MIN_STACK: 33554432
+
+jobs:
+  check:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: vendor/pi/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: vendor/pi npm ci
+        working-directory: vendor/pi
+        run: npm ci
+
+      - name: cargo check --workspace
+        run: cargo check --workspace
+
+      - name: cargo test -p pi-link
+        run: cargo test -p pi-link
+
+      - name: scripts/check_arch.sh
+        shell: bash
+        run: scripts/check_arch.sh

@@ -19,7 +19,7 @@
 ## 1. 产物与通道
 
   **平台范围：只发 Windows x64。不发布 macOS 版本**
-`release-macos.yml` 已 `disabled_manually`，不做 darwin 资产，npm 薄壳在 macOS 上会报「暂无发布资产」。
+`release-macos.yml` 在本 fork 上通过只保留 `workflow_dispatch` 来停用（上游 danielbill 仓库的 `disabled_manually` 在这里不成立），不做 darwin 资产，npm 薄壳在 macOS 上会报「暂无发布资产」。
 
 | 产物 | 通道 | 产生方式 | 备注 |
 |---|---|---|---|
